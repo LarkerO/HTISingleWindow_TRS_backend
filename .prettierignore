@@ -1,0 +1,16 @@
+# Dependencies, generated output and local data
+/vendor/
+/runtime/
+/public/
+/extend/
+/view/
+/frontend/node_modules/
+/frontend/dist/
+/frontend/UPSTREAM.md
+composer.lock
+**/.env*
+*.log
+*.cache
+
+# Framework command-line entry
+/think

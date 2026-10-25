@@ -1,22 +1,65 @@
 import assert from 'node:assert/strict';
-import { createHash,createHmac,webcrypto } from 'node:crypto';
-import { digest,hmac,signRequest,verifyResponse } from '../frontend/src/business/sm3-client.js';
-if(!globalThis.crypto)globalThis.crypto=webcrypto;
-const hash=value=>createHash('sm3').update(value).digest('hex');
-const mac=(value,key)=>createHmac('sm3',key).update(value).digest('hex');
-assert.equal(digest('abc'),'66c7f0f462eeedd9d1f2d46bdc10e4e24167c4875cf2f7a2297da02b8f4ba8e0');
-for(const text of ['','abc','中文 / 🚆','x'.repeat(200)])for(const key of ['a','密钥','k'.repeat(90)])assert.equal(hmac(text,key),mac(text,key));
-const key='fixture-key-for-tests',body='{"name":"中文🚆"}',target='/api/v1/example?q=%E4%B8%AD&a=1&a=2';
-const signed=await signRequest(key,'POST',target,body,{'Content-Type':'application/json','X-Agency-Code':'LOCAL','Idempotency-Key':'ticket-1'});
-const secret=createHash('sha256').update(key).digest('hex'),h=signed.headers;
-assert.equal(h['x-api-key-id'],hash('MTR-KEY-V1\n'+secret));
-const canonical=['MTR-HMAC-SM3-V1',h['x-api-key-id'],'POST',target,h['x-timestamp'],h['x-nonce'],'application/json','LOCAL','','ticket-1',hash(body)].join('\n');
-assert.equal(h['x-signature'],mac(canonical,secret));assert.equal(h['X-API-Key'],undefined);
-const bytes=new TextEncoder().encode('{"data":"中文","meta":{}}');
-const headers=new Headers({'X-Request-Id':'123','X-Response-Timestamp':String(Math.floor(Date.now()/1000)),'X-Process-Time-Ms':'1.234','X-Memory-Delta-Bytes':'100','X-Memory-Peak-Bytes':'10000','X-Response-Signature-Algorithm':'HMAC-SM3-V1'});
-const replyCanonical=['MTR-HMAC-SM3-RESPONSE-V1',h['x-signature'],h['x-nonce'],'200','123',headers.get('X-Response-Timestamp'),'1.234','100','10000',hash(bytes)].join('\n');
-headers.set('X-Response-Signature',mac(replyCanonical,secret));const response={status:200,headers};
-verifyResponse(response,bytes,signed);
-assert.throws(()=>verifyResponse(response,new TextEncoder().encode('{}'),signed));
-headers.set('X-Process-Time-Ms','0');assert.throws(()=>verifyResponse(response,bytes,signed));
-console.log('PASS SM3 standard vector, HMAC against Node OpenSSL, Unicode, key lengths, signed headers and response tampering');
+import { createHash, createHmac, webcrypto } from 'node:crypto';
+import { digest, hmac, signRequest, verifyResponse } from '../frontend/src/business/sm3-client.js';
+if (!globalThis.crypto) globalThis.crypto = webcrypto;
+const hash = (value) => createHash('sm3').update(value).digest('hex');
+const mac = (value, key) => createHmac('sm3', key).update(value).digest('hex');
+assert.equal(digest('abc'), '66c7f0f462eeedd9d1f2d46bdc10e4e24167c4875cf2f7a2297da02b8f4ba8e0');
+for (const text of ['', 'abc', '中文 / 🚆', 'x'.repeat(200)])
+  for (const key of ['a', '密钥', 'k'.repeat(90)]) assert.equal(hmac(text, key), mac(text, key));
+const key = 'fixture-key-for-tests',
+  body = '{"name":"中文🚆"}',
+  target = '/api/v1/example?q=%E4%B8%AD&a=1&a=2';
+const signed = await signRequest(key, 'POST', target, body, {
+  'Content-Type': 'application/json',
+  'X-Agency-Code': 'LOCAL',
+  'Idempotency-Key': 'ticket-1',
+});
+const secret = createHash('sha256').update(key).digest('hex'),
+  h = signed.headers;
+assert.equal(h['x-api-key-id'], hash('MTR-KEY-V1\n' + secret));
+const canonical = [
+  'MTR-HMAC-SM3-V1',
+  h['x-api-key-id'],
+  'POST',
+  target,
+  h['x-timestamp'],
+  h['x-nonce'],
+  'application/json',
+  'LOCAL',
+  '',
+  'ticket-1',
+  hash(body),
+].join('\n');
+assert.equal(h['x-signature'], mac(canonical, secret));
+assert.equal(h['X-API-Key'], undefined);
+const bytes = new TextEncoder().encode('{"data":"中文","meta":{}}');
+const headers = new Headers({
+  'X-Request-Id': '123',
+  'X-Response-Timestamp': String(Math.floor(Date.now() / 1000)),
+  'X-Process-Time-Ms': '1.234',
+  'X-Memory-Delta-Bytes': '100',
+  'X-Memory-Peak-Bytes': '10000',
+  'X-Response-Signature-Algorithm': 'HMAC-SM3-V1',
+});
+const replyCanonical = [
+  'MTR-HMAC-SM3-RESPONSE-V1',
+  h['x-signature'],
+  h['x-nonce'],
+  '200',
+  '123',
+  headers.get('X-Response-Timestamp'),
+  '1.234',
+  '100',
+  '10000',
+  hash(bytes),
+].join('\n');
+headers.set('X-Response-Signature', mac(replyCanonical, secret));
+const response = { status: 200, headers };
+verifyResponse(response, bytes, signed);
+assert.throws(() => verifyResponse(response, new TextEncoder().encode('{}'), signed));
+headers.set('X-Process-Time-Ms', '0');
+assert.throws(() => verifyResponse(response, bytes, signed));
+console.log(
+  'PASS SM3 standard vector, HMAC against Node OpenSSL, Unicode, key lengths, signed headers and response tampering',
+);

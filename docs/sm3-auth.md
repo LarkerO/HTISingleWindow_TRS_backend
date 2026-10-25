@@ -63,7 +63,13 @@ SM3(raw_response_body_bytes)
 API 响应（含认证失败与错误）在 JSON 的 `meta.request` 返回：
 
 ```json
-{"request_id":"32位hex","duration_ms":1.234,"memory_delta_bytes":1000,"memory_peak_bytes":510008,"memory_scope":"request"}
+{
+  "request_id": "32位hex",
+  "duration_ms": 1.234,
+  "memory_delta_bytes": 1000,
+  "memory_peak_bytes": 510008,
+  "memory_scope": "request"
+}
 ```
 
 同时返回 `X-Request-Id`、`X-Process-Time-Ms`、`X-Memory-Delta-Bytes`、`X-Memory-Peak-Bytes` 和 `Server-Timing: app;dur=1.234`。`duration_ms` 使用单调时钟，覆盖全局中间件进入、鉴权、控制器、数据库及第一次响应序列化，不包含 PHP 启动、最终指标封装/HMAC/日志、网络传输和客户端等待。

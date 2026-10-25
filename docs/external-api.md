@@ -44,19 +44,19 @@ Accept: application/json
 单项成功响应：
 
 ```json
-{"data": {"id": 123}}
+{ "data": { "id": 123 } }
 ```
 
 分页成功响应：
 
 ```json
-{"data": [], "total": 0, "page": 1, "page_size": 30}
+{ "data": [], "total": 0, "page": 1, "page_size": 30 }
 ```
 
 错误响应：
 
 ```json
-{"error": "Document changed; reload current version"}
+{ "error": "Document changed; reload current version" }
 ```
 
 创建证件、出票、追加 TLV、创建机构成功返回 HTTP 201；其他成功操作通常返回 200。出票幂等重试也返回 201，不能仅凭 201 判断是否新建了一张票。错误以 HTTP 状态码为准，`error` 为说明文本，当前没有独立的机器错误码字段。
@@ -65,14 +65,14 @@ Accept: application/json
 
 ### 1.3 日期、时刻与金额
 
-| 内容 | 约定 |
-|---|---|
-| 日期 | `YYYY-MM-DD` |
-| 时刻过滤 | `HH:MM` 或 `HH:MM:SS`，UTC |
+| 内容           | 约定                                                                                          |
+| -------------- | --------------------------------------------------------------------------------------------- |
+| 日期           | `YYYY-MM-DD`                                                                                  |
+| 时刻过滤       | `HH:MM` 或 `HH:MM:SS`，UTC                                                                    |
 | 数据库时间响应 | UTC 的 `YYYY-MM-DD HH:MM:SS` 或带三位毫秒的 `YYYY-MM-DD HH:MM:SS.SSS`；字符串本身没有时区后缀 |
-| 金额 | `amount_minor` 为最小货币单位整数，例如 CNY 的 100 表示 1 元 |
-| 时间区间 | 起始包含、结束不包含，即 `[time_from, time_to)` |
-| 时区换算 | 北京时间 = UTC + 8 小时，转换时需同时调整日期 |
+| 金额           | `amount_minor` 为最小货币单位整数，例如 CNY 的 100 表示 1 元                                  |
+| 时间区间       | 起始包含、结束不包含，即 `[time_from, time_to)`                                               |
+| 时区换算       | 北京时间 = UTC + 8 小时，转换时需同时调整日期                                                 |
 
 `trips.date` 和运营方客票列表的 `date` 按班次运营日 `service_date` 过滤；`journeys.date` 按选定上车站的 UTC 发车自然日过滤。跨午夜班次的两种日期可能不同。
 
@@ -82,18 +82,18 @@ Accept: application/json
 
 ### 1.4 标识符
 
-| 字段 | 含义与使用要求 |
-|---|---|
-| 车站 `id` / `station_id` | 字符串，包含维度信息；必须直接使用车站接口返回值 |
+| 字段                                             | 含义与使用要求                                        |
+| ------------------------------------------------ | ----------------------------------------------------- |
+| 车站 `id` / `station_id`                         | 字符串，包含维度信息；必须直接使用车站接口返回值      |
 | `mtr_id`、`depot_id`、`siding_id`、`platform_id` | 原始 MTR ID，以字符串处理，不转换为 JavaScript Number |
-| 班次 `id` | 数据库班次主键，出票时作为 `trip_id` 使用 |
-| `train_number` | D/G/C/S 开头的显示车次号，可能为 null，不唯一 |
-| `trip_code` | 车厂 ID + 股道 ID + 趟次的显示组合标识，不用于出票 |
-| `origin_seq` / `destination_seq` | 班次内从 0 开始的停站序号，不是车站 ID |
-| `ticket_number` | 13 位数字字符串，保留前导零，不作为数值处理 |
-| `pnr` | 6 位订座记录号；查询接口使用票号 |
-| 证件 `id` | 全局证件库主键，出票时作为 `document_id` 使用 |
-| TLV `id` | 附加信息记录主键；区别于标签 `tag` |
+| 班次 `id`                                        | 数据库班次主键，出票时作为 `trip_id` 使用             |
+| `train_number`                                   | D/G/C/S 开头的显示车次号，可能为 null，不唯一         |
+| `trip_code`                                      | 车厂 ID + 股道 ID + 趟次的显示组合标识，不用于出票    |
+| `origin_seq` / `destination_seq`                 | 班次内从 0 开始的停站序号，不是车站 ID                |
+| `ticket_number`                                  | 13 位数字字符串，保留前导零，不作为数值处理           |
+| `pnr`                                            | 6 位订座记录号；查询接口使用票号                      |
+| 证件 `id`                                        | 全局证件库主键，出票时作为 `document_id` 使用         |
+| TLV `id`                                         | 附加信息记录主键；区别于标签 `tag`                    |
 
 数据库读取的部分数值字段可能以 JSON 字符串返回；客户端应按字段语义解析。出票请求中的 `trip_id`、停站序号、`document_id`，以及证件更新 `version`、TLV `tag`/`length` 必须提交 JSON 整数，不能提交带引号的数字。使用 JavaScript 时，确认整数在安全整数范围内；超出范围不能通过浮点数舍入后提交。
 
@@ -105,14 +105,14 @@ Accept: application/json
 
 ### 2.1 密钥角色
 
-| 接口范围 | 出票方密钥 agency | 运营方密钥 operator | 管理员密钥 admin |
-|---|---|---|---|
-| `GET /api/v1/me` | 可以 | 可以 | 可以 |
-| 车站、车厂、班次、区间查询 | 可以 | 不可以 | 可以 |
-| 全局证件查询、创建、修改、日志 | 可以 | 不可以 | 可以 |
-| 出票、普通票号查询、退票 | 本出票方 | 不可以 | 指定出票方上下文 |
-| `/api/v1/operator/*` | 不可以 | 本运营方 | 指定运营方上下文 |
-| `/api/v1/admin/*` | 不可以 | 不可以 | 可以 |
+| 接口范围                       | 出票方密钥 agency | 运营方密钥 operator | 管理员密钥 admin |
+| ------------------------------ | ----------------- | ------------------- | ---------------- |
+| `GET /api/v1/me`               | 可以              | 可以                | 可以             |
+| 车站、车厂、班次、区间查询     | 可以              | 不可以              | 可以             |
+| 全局证件查询、创建、修改、日志 | 可以              | 不可以              | 可以             |
+| 出票、普通票号查询、退票       | 本出票方          | 不可以              | 指定出票方上下文 |
+| `/api/v1/operator/*`           | 不可以            | 本运营方            | 指定运营方上下文 |
+| `/api/v1/admin/*`              | 不可以            | 不可以              | 可以             |
 
 出票方与运营方使用各自独立密钥。相同公司需要两种能力时，应分别申请相应身份，而不是用运营方密钥出票。
 
@@ -202,10 +202,10 @@ Accept: application/json
 
 `GET /api/v1/stations`
 
-| 查询参数 | 必填 | 说明 |
-|---|---|---|
-| `q` | 否 | 站名包含查询 |
-| `dimension` | 否 | 维度精确过滤，例如 `minecraft/overworld` |
+| 查询参数    | 必填 | 说明                                     |
+| ----------- | ---- | ---------------------------------------- |
+| `q`         | 否   | 站名包含查询                             |
+| `dimension` | 否   | 维度精确过滤，例如 `minecraft/overworld` |
 
 最多返回 500 条，没有分页。返回结构：
 
@@ -241,36 +241,36 @@ Accept: application/json
 
 `GET /api/v1/trips`
 
-| 查询参数 | 必填 | 说明 |
-|---|---|---|
-| `date` | 否 | UTC 运营日 `service_date` |
-| `operator` | 否 | 运营方代码 |
-| `dimension` | 否 | 维度 |
-| `depot_id` | 否 | 原始车厂 ID 字符串 |
-| `train_number` | 否 | D/G/C/S + 1–16 位数字，例如 G0104 |
-| `time_from` | 否 | 首站发车时间下界；填写时必须同时指定 date |
-| `time_to` | 否 | 首站发车时间上界；填写时必须同时指定 date |
-| `page` | 否 | 从 1 开始，固定每页 30 条 |
+| 查询参数       | 必填 | 说明                                      |
+| -------------- | ---- | ----------------------------------------- |
+| `date`         | 否   | UTC 运营日 `service_date`                 |
+| `operator`     | 否   | 运营方代码                                |
+| `dimension`    | 否   | 维度                                      |
+| `depot_id`     | 否   | 原始车厂 ID 字符串                        |
+| `train_number` | 否   | D/G/C/S + 1–16 位数字，例如 G0104         |
+| `time_from`    | 否   | 首站发车时间下界；填写时必须同时指定 date |
+| `time_to`      | 否   | 首站发车时间上界；填写时必须同时指定 date |
+| `page`         | 否   | 从 1 开始，固定每页 30 条                 |
 
 只列出启用班次及启用运营方。返回 `data,total,page,page_size,timezone`。排序为运营日、车厂、股道、趟次、ID。
 
 班次对象常用字段：
 
-| 字段 | 说明 |
-|---|---|
-| `id` | 出票使用的班次主键 |
-| `dimension`、`service_date` | 维度、UTC 运营日 |
-| `name` | 原线路名称 |
-| `train_number` | 提取到的车次号，可能为 null |
-| `duty` | 含“担当”的原说明；没有时为空字符串 |
-| `operator_code`、`operator_name` | 实际运营方及列表中的名称 |
-| `depot_id`、`siding_id` | 原始字符串 ID |
-| `run_number`、`trip_code` | 趟次及组合显示标识 |
-| `depot_operator_code` | 车厂归属运营方，可能为 null |
-| `operator_assignment` | `depot` 表示按车厂归属，`trip` 表示班次配置 |
-| `capacity` | 区间容量 |
-| `fare_per_segment` | 历史兼容字段，不参与新票定价；使用区间报价返回的 amount_minor |
-| `origin`、`destination` | 列表中的首末停站对象 |
+| 字段                             | 说明                                                          |
+| -------------------------------- | ------------------------------------------------------------- |
+| `id`                             | 出票使用的班次主键                                            |
+| `dimension`、`service_date`      | 维度、UTC 运营日                                              |
+| `name`                           | 原线路名称                                                    |
+| `train_number`                   | 提取到的车次号，可能为 null                                   |
+| `duty`                           | 含“担当”的原说明；没有时为空字符串                            |
+| `operator_code`、`operator_name` | 实际运营方及列表中的名称                                      |
+| `depot_id`、`siding_id`          | 原始字符串 ID                                                 |
+| `run_number`、`trip_code`        | 趟次及组合显示标识                                            |
+| `depot_operator_code`            | 车厂归属运营方，可能为 null                                   |
+| `operator_assignment`            | `depot` 表示按车厂归属，`trip` 表示班次配置                   |
+| `capacity`                       | 区间容量                                                      |
+| `fare_per_segment`               | 历史兼容字段，不参与新票定价；使用区间报价返回的 amount_minor |
+| `origin`、`destination`          | 列表中的首末停站对象                                          |
 
 车次号从线路名按 `|` 分段，删除非 ASCII 字母和数字、转大写后，取第一个完整匹配 D/G/C/S + 1–16 位数字的段。前导零保留。其他前缀不提取车次号。
 
@@ -290,13 +290,13 @@ Accept: application/json
 
 `GET /api/v1/journeys`
 
-| 查询参数 | 必填 | 说明 |
-|---|---|---|
-| `origin` | 是 | 上车站 ID |
-| `destination` | 是 | 下车站 ID，必须与 origin 不同 |
-| `date` | 是 | 上车站发车的 UTC 日期 |
-| `train_number` | 否 | 车次号 |
-| `time_from`、`time_to` | 否 | 上车站发车时间窗口 |
+| 查询参数               | 必填 | 说明                          |
+| ---------------------- | ---- | ----------------------------- |
+| `origin`               | 是   | 上车站 ID                     |
+| `destination`          | 是   | 下车站 ID，必须与 origin 不同 |
+| `date`                 | 是   | 上车站发车的 UTC 日期         |
+| `train_number`         | 否   | 车次号                        |
+| `time_from`、`time_to` | 否   | 上车站发车时间窗口            |
 
 返回最多 200 条，按上车发车时刻、班次 ID、停站序号排序，没有分页。结果过多时缩小区间、时段或车次号条件。
 
@@ -337,19 +337,19 @@ Accept: application/json
 
 ### 5.1 证件字段
 
-| 字段 | 创建/更新要求 | 说明 |
-|---|---|---|
-| `document_type` | 必填字符串，1–32 字符 | 如 PASSPORT、ID_CARD；无固定类型字典 |
-| `document_number` | 必填字符串，1–80 字符 | 保留前导零，不作为数字 |
-| `issuing_country` | 必填字符串，3 个字母 | 如 CHN；仅校验三字母格式，不校验外部代码字典 |
-| `birth_date` | 必填 | 真实日期，1000-01-01 至当前 UTC 日期 |
-| `surname` | 可省略、null 或空字符串 | 姓，最多 80 字符，空值保存为 null |
-| `given_name` | 必填字符串，1–80 字符 | 名 |
-| `reason` | 必填字符串，1–500 字符 | 本次登记或修改原因，写入日志 |
-| `version` | 更新必填，正整数 | 提交刚读取的当前版本 |
-| `id` | 服务端生成 | 请求体不能指定 |
-| `created_at`、`updated_at` | 服务端生成 | UTC 毫秒时间，请求体不能指定 |
-| `display_name` | 响应字段 | 姓 + 空格 + 名，姓为空时只显示名 |
+| 字段                       | 创建/更新要求           | 说明                                         |
+| -------------------------- | ----------------------- | -------------------------------------------- |
+| `document_type`            | 必填字符串，1–32 字符   | 如 PASSPORT、ID_CARD；无固定类型字典         |
+| `document_number`          | 必填字符串，1–80 字符   | 保留前导零，不作为数字                       |
+| `issuing_country`          | 必填字符串，3 个字母    | 如 CHN；仅校验三字母格式，不校验外部代码字典 |
+| `birth_date`               | 必填                    | 真实日期，1000-01-01 至当前 UTC 日期         |
+| `surname`                  | 可省略、null 或空字符串 | 姓，最多 80 字符，空值保存为 null            |
+| `given_name`               | 必填字符串，1–80 字符   | 名                                           |
+| `reason`                   | 必填字符串，1–500 字符  | 本次登记或修改原因，写入日志                 |
+| `version`                  | 更新必填，正整数        | 提交刚读取的当前版本                         |
+| `id`                       | 服务端生成              | 请求体不能指定                               |
+| `created_at`、`updated_at` | 服务端生成              | UTC 毫秒时间，请求体不能指定                 |
+| `display_name`             | 响应字段                | 姓 + 空格 + 名，姓为空时只显示名             |
 
 类型、号码、归属地去除首尾空白并将 ASCII 字母转大写。姓名去除首尾空白，完整显示姓名最多 160 字符。文本校验拒绝控制字符。
 
@@ -432,14 +432,14 @@ HTTP 201 响应：
 
 每页 30 条，按日志 ID 倒序。每条包含：
 
-| 字段 | 说明 |
-|---|---|
-| `id`、`document_id` | 日志与证件 ID |
-| `action` | CREATE / UPDATE |
+| 字段                       | 说明                                     |
+| -------------------------- | ---------------------------------------- |
+| `id`、`document_id`        | 日志与证件 ID                            |
+| `action`                   | CREATE / UPDATE                          |
 | `actor_role`、`actor_code` | 操作者角色、机构代码；管理员代码为 ADMIN |
-| `reason`、`occurred_at` | 原因、UTC 时间 |
-| `before` | 修改前完整证件；创建时为 null |
-| `after` | 修改后完整证件 |
+| `reason`、`occurred_at`    | 原因、UTC 时间                           |
+| `before`                   | 修改前完整证件；创建时为 null            |
+| `after`                    | 修改后完整证件                           |
 
 ## 6. 出票、查询与退票
 
@@ -453,24 +453,24 @@ HTTP 201 响应：
 Idempotency-Key: order-20261004-000001
 ```
 
-| 请求字段 | 必填 | 说明 |
-|---|---|---|
-| `trip_id` | 是 | 查询结果的数据库班次 ID，JSON 非负整数 |
-| `origin_seq` | 是 | JSON 非负整数 |
-| `destination_seq` | 是 | JSON 非负整数，必须大于 origin_seq |
-| `document_id` | 推荐 | 全局证件 ID，JSON 正整数 |
-| `passenger` | 无 document_id 时必填 | 姓名字符串，去空白后 1–160 字符 |
+| 请求字段          | 必填                  | 说明                                   |
+| ----------------- | --------------------- | -------------------------------------- |
+| `trip_id`         | 是                    | 查询结果的数据库班次 ID，JSON 非负整数 |
+| `origin_seq`      | 是                    | JSON 非负整数                          |
+| `destination_seq` | 是                    | JSON 非负整数，必须大于 origin_seq     |
+| `document_id`     | 推荐                  | 全局证件 ID，JSON 正整数               |
+| `passenger`       | 无 document_id 时必填 | 姓名字符串，去空白后 1–160 字符        |
 
 证件出票请求：
 
 ```json
-{"trip_id":123,"origin_seq":0,"destination_seq":3,"document_id":456}
+{ "trip_id": 123, "origin_seq": 0, "destination_seq": 3, "document_id": 456 }
 ```
 
 兼容仅姓名出票请求：
 
 ```json
-{"trip_id":123,"origin_seq":0,"destination_seq":3,"passenger":"示例旅客"}
+{ "trip_id": 123, "origin_seq": 0, "destination_seq": 3, "passenger": "示例旅客" }
 ```
 
 有 `document_id` 时，姓名以证件库为准，请求中的 passenger 不参与出票姓名。服务器保存出票当时的完整证件快照，后续全局修改不改变旧票。仅姓名出票时，证件 ID 和快照为 null。
@@ -515,9 +515,9 @@ Idempotency-Key: order-20261004-000001
         "origin_seq": 0,
         "destination_seq": 3,
         "status": "OPEN",
-        "trip": {"id":123,"operator_code":"OP01","train_number":"G0104"},
-        "origin": {"seq":0,"station_id":"minecraft/overworld:10001","departure_at":"2026-10-04 08:30:00.000"},
-        "destination": {"seq":3,"station_id":"minecraft/overworld:10002","arrival_at":"2026-10-04 09:10:00.000"}
+        "trip": { "id": 123, "operator_code": "OP01", "train_number": "G0104" },
+        "origin": { "seq": 0, "station_id": "minecraft/overworld:10001", "departure_at": "2026-10-04 08:30:00.000" },
+        "destination": { "seq": 3, "station_id": "minecraft/overworld:10002", "arrival_at": "2026-10-04 09:10:00.000" }
       }
     ]
   }
@@ -552,10 +552,10 @@ Idempotency-Key: order-20261004-000001
 
 重复退同一已退票客票直接返回当前记录，不重复退库存。当前只有全票退票，没有部分退票、改签和金额计算接口。
 
-| 状态 | 含义 |
-|---|---|
+| 状态 | 含义                               |
+| ---- | ---------------------------------- |
 | OPEN | 已出票且未退票，乘车联占用区间库存 |
-| RFND | 已退票，乘车联不再占用库存 |
+| RFND | 已退票，乘车联不再占用库存         |
 
 ### 6.5 已签名调用示例
 
@@ -579,10 +579,10 @@ php examples/signed-request.php /api/v1/tickets POST request.json
 
 ### 7.1 浏览与读取客票
 
-| 方法 | 路径 | 参数 / 响应 |
-|---|---|---|
-| GET | `/api/v1/operator/tickets` | 可选 date（UTC 运营日）、page；每页 30 条，按客票 ID 倒序 |
-| GET | `/api/v1/operator/tickets/{number}` | 完整客票、证件快照及属于本运营方的乘车联 |
+| 方法 | 路径                                | 参数 / 响应                                               |
+| ---- | ----------------------------------- | --------------------------------------------------------- |
+| GET  | `/api/v1/operator/tickets`          | 可选 date（UTC 运营日）、page；每页 30 条，按客票 ID 倒序 |
+| GET  | `/api/v1/operator/tickets/{number}` | 完整客票、证件快照及属于本运营方的乘车联                  |
 
 列表项包含 `id,ticket_number,passenger,status,issued_at,agency_code`，列表响应带 `total,page,page_size`。列表没有车次号、时间窗口或票号搜索参数；已知票号用详情接口。
 
@@ -590,11 +590,11 @@ php examples/signed-request.php /api/v1/tickets POST request.json
 
 `project-tlv-v1` 是本项目确定的通用 TLV 格式：
 
-| 部分 | 长度 | 编码 |
-|---|---|---|
-| Tag | 2 字节 | 无符号整数，big-endian，0–65535 |
-| Length | 4 字节 | 无符号整数，big-endian，表示 Value 字节数 |
-| Value | Length 字节 | 原始值字节 |
+| 部分   | 长度        | 编码                                      |
+| ------ | ----------- | ----------------------------------------- |
+| Tag    | 2 字节      | 无符号整数，big-endian，0–65535           |
+| Length | 4 字节      | 无符号整数，big-endian，表示 Value 字节数 |
+| Value  | Length 字节 | 原始值字节                                |
 
 有效记录按记录 ID 升序逐个拼接。无条数前缀、终止标记或字节对齐填充。解析器每次读取 6 字节头，再读取 Length 个字节，直到流结束；剩余头不足 6 字节或值不足 Length 时视为不完整流。
 
@@ -612,26 +612,26 @@ label、记录 ID、时间、撤销状态和审计信息不进入二进制线格
 
 `POST /api/v1/operator/tickets/{number}/tlv`
 
-| 字段 | 必填 | 说明 |
-|---|---|---|
-| `tag` | 是 | JSON 整数，0–65535 |
-| `value` | 是 | 字符串，允许空值 |
-| `encoding` | 否 | utf8（默认）、hex、base64，区分大小写 |
-| `length` | 否 | JSON 整数；如果填写，必须等于解码后值字节数 |
-| `label` | 否 | 最多 160 字符的说明，默认空字符串 |
+| 字段       | 必填 | 说明                                        |
+| ---------- | ---- | ------------------------------------------- |
+| `tag`      | 是   | JSON 整数，0–65535                          |
+| `value`    | 是   | 字符串，允许空值                            |
+| `encoding` | 否   | utf8（默认）、hex、base64，区分大小写       |
+| `length`   | 否   | JSON 整数；如果填写，必须等于解码后值字节数 |
+| `label`    | 否   | 最多 160 字符的说明，默认空字符串           |
 
 单项解码后值最多 65,536 字节。hex 只能含十六进制字符且长度为偶数，不允许空格或 0x 前缀；base64 使用标准字符集和规范填充，不是 Base64URL。utf8 字节长度不等于字符数。
 
 请求示例：
 
 ```json
-{"tag":101,"encoding":"utf8","value":"中文","length":6,"label":"服务备注"}
+{ "tag": 101, "encoding": "utf8", "value": "中文", "length": 6, "label": "服务备注" }
 ```
 
 任意二进制示例：
 
 ```json
-{"tag":102,"encoding":"hex","value":"00FF80","label":"二进制示例"}
+{ "tag": 102, "encoding": "hex", "value": "00FF80", "label": "二进制示例" }
 ```
 
 HTTP 201 完整记录响应示例：
@@ -668,7 +668,7 @@ HTTP 201 完整记录响应示例：
 默认只返回有效记录；`include_revoked=1` 包含已撤销记录。每页 30 条，按记录 ID 升序，响应：
 
 ```json
-{"data":[],"total":0,"page":1,"page_size":30,"format":"project-tlv-v1"}
+{ "data": [], "total": 0, "page": 1, "page_size": 30, "format": "project-tlv-v1" }
 ```
 
 每条结构与追加响应一致。`active` 为布尔值，撤销后为 false。
@@ -680,7 +680,7 @@ HTTP 201 完整记录响应示例：
 必须带 JSON 请求体：
 
 ```json
-{"reason":"更正错误备注"}
+{ "reason": "更正错误备注" }
 ```
 
 reason 去空白后为 1–500 字符。返回该记录，填入 revoked_at、active=false，原值仍保留。重复撤销不追加重复日志。不能原地修改记录，纠错采用撤销旧记录再追加新记录。
@@ -715,14 +715,14 @@ reason 去空白后为 1–500 字符。返回该记录，填入 revoked_at、ac
 
 ## 8. 错误与重试
 
-| HTTP 状态 | 常见原因 | 客户端处理 |
-|---|---|---|
-| 401 | 密钥缺失、无效、轮换失效、机构停用 | 核对密钥与机构状态 |
-| 403 | 角色不符、冒用身份、出票不在白名单 | 核对身份及授权，不能通过重试解决 |
-| 404 | 资源不存在，或不属于当前出票方/运营方 | 核对票号、ID、身份上下文 |
-| 409 | 库存售罄、发车已过、班次不可售、幂等键冲突、证件重复/版本冲突、业务变更受保护 | 按具体场景重新查询或处理冲突 |
-| 422 | 日期、字段类型、停站区间、TLV 编码/长度等参数错误 | 修正请求参数 |
-| 500 | 服务端内部异常 | 记录请求信息，按操作性质核对或重试 |
+| HTTP 状态 | 常见原因                                                                      | 客户端处理                         |
+| --------- | ----------------------------------------------------------------------------- | ---------------------------------- |
+| 401       | 密钥缺失、无效、轮换失效、机构停用                                            | 核对密钥与机构状态                 |
+| 403       | 角色不符、冒用身份、出票不在白名单                                            | 核对身份及授权，不能通过重试解决   |
+| 404       | 资源不存在，或不属于当前出票方/运营方                                         | 核对票号、ID、身份上下文           |
+| 409       | 库存售罄、发车已过、班次不可售、幂等键冲突、证件重复/版本冲突、业务变更受保护 | 按具体场景重新查询或处理冲突       |
+| 422       | 日期、字段类型、停站区间、TLV 编码/长度等参数错误                             | 修正请求参数                       |
+| 500       | 服务端内部异常                                                                | 记录请求信息，按操作性质核对或重试 |
 
 典型错误文本：
 
@@ -744,21 +744,21 @@ reason 去空白后为 1–500 字符。返回该记录，填入 revoked_at、ac
 
 ## 9. 联调验收清单
 
-| 场景 | 预期 |
-|---|---|
-| 出票方和运营方分别调用 me | 返回正确绑定角色及代码 |
-| 同号车次选择 | 用具体班次 ID 和停站序号出票 |
-| 跨午夜与北京时间换算 | 上车日期、运营日与展示日期符合各自语义 |
-| 证件创建、重复登记、更正 | 全局唯一，更新携带版本，日志有前后值 |
-| 证件更正后读取旧票 | 旧票快照不变 |
-| 同键重复出票 | 同一票号，库存只扣一次 |
-| 同键不同参数 | 409 |
-| 售罄或已发车 | 出票失败，不能以查询余票作为出票成功 |
-| 重复退票 | RFND，库存只归还一次 |
-| 跨出票方/运营方读取客票 | 404；错误角色调用受限接口为 403 |
-| UTF-8 中文、00/FF 二进制 TLV | 字节长度及导出流正确 |
-| 重复标签与撤销 | 保留多个记录，撤销项不进入有效流 |
-| 旧密钥访问 | 轮换后 401 |
+| 场景                         | 预期                                   |
+| ---------------------------- | -------------------------------------- |
+| 出票方和运营方分别调用 me    | 返回正确绑定角色及代码                 |
+| 同号车次选择                 | 用具体班次 ID 和停站序号出票           |
+| 跨午夜与北京时间换算         | 上车日期、运营日与展示日期符合各自语义 |
+| 证件创建、重复登记、更正     | 全局唯一，更新携带版本，日志有前后值   |
+| 证件更正后读取旧票           | 旧票快照不变                           |
+| 同键重复出票                 | 同一票号，库存只扣一次                 |
+| 同键不同参数                 | 409                                    |
+| 售罄或已发车                 | 出票失败，不能以查询余票作为出票成功   |
+| 重复退票                     | RFND，库存只归还一次                   |
+| 跨出票方/运营方读取客票      | 404；错误角色调用受限接口为 403        |
+| UTF-8 中文、00/FF 二进制 TLV | 字节长度及导出流正确                   |
+| 重复标签与撤销               | 保留多个记录，撤销项不进入有效流       |
+| 旧密钥访问                   | 轮换后 401                             |
 
 联调请使用服务方分配的测试机构、未来班次及虚构证件。按日清理会永久移除客票及幂等记录，不能将清理作为正常退票流程。
 
@@ -770,34 +770,34 @@ reason 去空白后为 1–500 字符。返回该记录，填入 revoked_at、ac
 
 以下路径统一前缀为 `/api/v1/admin`。
 
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| GET / POST | `/operators` | 列出 / 创建运营方 |
-| PUT | `/operators/{code}` | 完整更新运营方 |
-| POST | `/operators/{code}/key` | 创建或轮换运营方密钥 |
-| GET | `/operators/{code}/agencies` | 读取出票白名单及启用状态 |
-| POST | `/operators/{code}/agencies` | 添加名单成员 |
-| DELETE | `/operators/{code}/agencies/{agency}` | 移除名单成员 |
-| GET / POST | `/agencies` | 列出 / 创建出票方 |
-| PUT | `/agencies/{code}` | 完整更新出票方 |
-| PUT | `/agencies/{code}/operators` | 替换该出票方对应的全部运营方名单关系 |
-| POST | `/agencies/{code}/key` | 创建或轮换出票方密钥 |
-| PUT | `/depots/operator` | 车厂整体归属 |
-| PUT | `/trips/{id}/operator` | 修改单班次运营方 |
-| POST | `/clear-date` | 预览或执行运营日清理 |
+| 方法       | 路径                                  | 说明                                 |
+| ---------- | ------------------------------------- | ------------------------------------ |
+| GET / POST | `/operators`                          | 列出 / 创建运营方                    |
+| PUT        | `/operators/{code}`                   | 完整更新运营方                       |
+| POST       | `/operators/{code}/key`               | 创建或轮换运营方密钥                 |
+| GET        | `/operators/{code}/agencies`          | 读取出票白名单及启用状态             |
+| POST       | `/operators/{code}/agencies`          | 添加名单成员                         |
+| DELETE     | `/operators/{code}/agencies/{agency}` | 移除名单成员                         |
+| GET / POST | `/agencies`                           | 列出 / 创建出票方                    |
+| PUT        | `/agencies/{code}`                    | 完整更新出票方                       |
+| PUT        | `/agencies/{code}/operators`          | 替换该出票方对应的全部运营方名单关系 |
+| POST       | `/agencies/{code}/key`                | 创建或轮换出票方密钥                 |
+| PUT        | `/depots/operator`                    | 车厂整体归属                         |
+| PUT        | `/trips/{id}/operator`                | 修改单班次运营方                     |
+| POST       | `/clear-date`                         | 预览或执行运营日清理                 |
 
 ### 10.2 机构管理
 
 创建运营方：
 
 ```json
-{"code":"OP01","name":"示例运营方","contact":"对接联系人","active":1,"whitelist_enabled":1}
+{ "code": "OP01", "name": "示例运营方", "contact": "对接联系人", "active": 1, "whitelist_enabled": 1 }
 ```
 
 创建出票方：
 
 ```json
-{"code":"AGENCY01","name":"示例出票方","contact":"对接联系人","active":1,"issuer_code":"123"}
+{ "code": "AGENCY01", "name": "示例出票方", "contact": "对接联系人", "active": 1, "issuer_code": "123" }
 ```
 
 - 运营方 code 为 1–16 位大写字母或数字；出票方 code 为 1–32 位大写字母、数字、下划线或连字符。
@@ -822,13 +822,19 @@ POST /api/v1/admin/operators/OP01/key
 白名单查询、添加、移除均返回同一结构，enabled 是布尔值：
 
 ```json
-{"data":{"operator_code":"OP01","enabled":true,"agencies":[{"code":"AGENCY01","name":"示例出票方","active":1}]}}
+{
+  "data": {
+    "operator_code": "OP01",
+    "enabled": true,
+    "agencies": [{ "code": "AGENCY01", "name": "示例出票方", "active": 1 }]
+  }
+}
 ```
 
 替换某出票方全部名单关系：
 
 ```json
-{"operators":["OP01","OP02"]}
+{ "operators": ["OP01", "OP02"] }
 ```
 
 这是替换操作，传空数组清空关系；最多 1000 个代码，代码必须对应已存在运营方。这些关系只在相应运营方开启白名单时限制新销售。
@@ -838,7 +844,7 @@ POST /api/v1/admin/operators/OP01/key
 `PUT /api/v1/admin/depots/operator`
 
 ```json
-{"dimension":"minecraft/overworld","depot_id":"100","operator_code":"OP01"}
+{ "dimension": "minecraft/overworld", "depot_id": "100", "operator_code": "OP01" }
 ```
 
 按维度与车厂 ID 定位；该车厂所有日期及历史版本的班次统一归属，后续导入继承。已有任何客票（包括已退票）的班次不能变更到其他运营方，冲突整批回滚。班次响应通过 depot_operator_code / operator_assignment 标注来源。
@@ -846,7 +852,7 @@ POST /api/v1/admin/operators/OP01/key
 `PUT /api/v1/admin/trips/{id}/operator`
 
 ```json
-{"operator_code":"OP01"}
+{ "operator_code": "OP01" }
 ```
 
 目标运营方须启用；已出票班次不能修改；已归属车厂的班次不能单独改到其他运营方，应使用车厂接口。
@@ -858,13 +864,13 @@ POST /api/v1/admin/operators/OP01/key
 先预览：
 
 ```json
-{"date":"2026-10-04","scope":"tickets","preview":true}
+{ "date": "2026-10-04", "scope": "tickets", "preview": true }
 ```
 
 执行：
 
 ```json
-{"date":"2026-10-04","scope":"tickets","preview":false,"confirm_date":"2026-10-04"}
+{ "date": "2026-10-04", "scope": "tickets", "preview": false, "confirm_date": "2026-10-04" }
 ```
 
 preview 为 JSON 布尔值，默认 true。执行时 confirm_date 必须与 date 相同。响应 data 提供各类数量及 blocked 等清理结果；执行时重新检查，不依赖旧预览。
@@ -896,17 +902,15 @@ preview 为 JSON 布尔值，默认 true。执行时 confirm_date 必须与 date
 
 counts 为所选 scope 实际涉及的表数量，不涉及的表为 0。timetable 预览遇到客票返回 blocked=true，实际执行返回 409。
 
-| scope | 范围 |
-|---|---|
-| tickets | 删除当日班次客票、乘车联、幂等请求、客票日志、TLV 及其日志，保留运行图 |
-| timetable | 删除当日停站、班次和导入批次；有关联客票时返回 409 |
-| all | 当日运行图及其全部关联客票一起删除 |
+| scope     | 范围                                                                   |
+| --------- | ---------------------------------------------------------------------- |
+| tickets   | 删除当日班次客票、乘车联、幂等请求、客票日志、TLV 及其日志，保留运行图 |
+| timetable | 删除当日停站、班次和导入批次；有关联客票时返回 409                     |
+| all       | 当日运行图及其全部关联客票一起删除                                     |
 
 按 UTC service_date 清理所有维度和历史版本，包含跨午夜停站；不是按出票日或上车自然日清理。车站、地图目录、机构、密钥、白名单、全局旅客证件及证件修改日志均保留。
 
 执行清理属于永久删除，调用方应使用预览结果展示实际范围并确认日期；清理后的旧班次、票号、TLV ID 以及出票幂等记录不可继续使用。
-
-
 
 ## 11. 单价管理与性能指标
 

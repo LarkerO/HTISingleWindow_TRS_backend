@@ -15,7 +15,22 @@
 `GET /api/v1/admin/fare-rates` 返回 `version`、`currency`、`rates`。`PUT` 提交当前版本和**完整**档位数组：
 
 ```json
-{"version":1,"rates":[{"speed_kmh":2,"rate_minor_per_km":5},{"speed_kmh":20,"rate_minor_per_km":10},{"speed_kmh":30,"rate_minor_per_km":12},{"speed_kmh":40,"rate_minor_per_km":15},{"speed_kmh":60,"rate_minor_per_km":20},{"speed_kmh":80,"rate_minor_per_km":25},{"speed_kmh":120,"rate_minor_per_km":35},{"speed_kmh":160,"rate_minor_per_km":45},{"speed_kmh":200,"rate_minor_per_km":55},{"speed_kmh":300,"rate_minor_per_km":75},{"speed_kmh":900,"rate_minor_per_km":150}]}
+{
+  "version": 1,
+  "rates": [
+    { "speed_kmh": 2, "rate_minor_per_km": 5 },
+    { "speed_kmh": 20, "rate_minor_per_km": 10 },
+    { "speed_kmh": 30, "rate_minor_per_km": 12 },
+    { "speed_kmh": 40, "rate_minor_per_km": 15 },
+    { "speed_kmh": 60, "rate_minor_per_km": 20 },
+    { "speed_kmh": 80, "rate_minor_per_km": 25 },
+    { "speed_kmh": 120, "rate_minor_per_km": 35 },
+    { "speed_kmh": 160, "rate_minor_per_km": 45 },
+    { "speed_kmh": 200, "rate_minor_per_km": 55 },
+    { "speed_kmh": 300, "rate_minor_per_km": 75 },
+    { "speed_kmh": 900, "rate_minor_per_km": 150 }
+  ]
+}
 ```
 
 上面是初始化的**演示单价**。管理员可在工作台“轨道公里单价”编辑，或通过已签名管理接口调整。单价必须为 0–1,000,000 的 JSON 整数，随速度严格增加；缺档、重复、未知档位、倒挂均返回 422。版本不符返回 409，避免覆盖他人的编辑。机构密钥不能管理单价。

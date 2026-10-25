@@ -26,3 +26,5 @@ API Key 仅在页面内存中，不使用 localStorage、sessionStorage 或示�
 业务 API 统一使用 `src/business/sm3-client.js` 签名，验签成功后才解析响应。需要 HTTPS 或 localhost 安全环境。管理员可在“轨道公里单价”维护各限速档的分/公里单价，保存带版本校验。新票自动提交报价版本，查询后改价需重新查询。
 
 安全与单价浏览器回归：`node tests/frontend-security.cjs`（在后端仓库目录执行）。Windows 映射盘访问 WSL 仓库时，含 PHP 数据夹具的测试可设置 `WSL_BACKEND_PATH` 为 WSL 内后端绝对路径；可用 `PLAYWRIGHT_MODULE_PATH` 指定 Playwright 包目录。
+
+格式化：在本目录执行 `npm run format`，可统一整理后端 PHP、前端源码与项目文档；`npm run format:check` 用于只读检查。配置见 `.prettierrc.js`，排除范围见后端仓库根目录 `.prettierignore`，生成的 `dist/` 和 `public/` 不会被格式化。

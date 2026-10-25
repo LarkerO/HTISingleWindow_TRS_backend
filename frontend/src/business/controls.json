@@ -789,34 +789,17 @@
   },
   "tlvForm": {
     "kind": "form",
-    "fields": [
-      "tlvTag",
-      "tlvLabel",
-      "tlvEncoding",
-      "tlvValue"
-    ],
+    "fields": ["tlvTag", "tlvLabel", "tlvEncoding", "tlvValue"],
     "submit": "tlvFormSubmit"
   },
   "operatorForm": {
     "kind": "form",
-    "fields": [
-      "opCode",
-      "opName",
-      "opContact",
-      "opWhitelist",
-      "opActive"
-    ],
+    "fields": ["opCode", "opName", "opContact", "opWhitelist", "opActive"],
     "submit": "operatorFormSubmit"
   },
   "agencyForm": {
     "kind": "form",
-    "fields": [
-      "agCode",
-      "agName",
-      "agIssuer",
-      "agContact",
-      "agActive"
-    ],
+    "fields": ["agCode", "agName", "agIssuer", "agContact", "agActive"],
     "submit": "agencyFormSubmit"
   },
   "connect": {

@@ -63,20 +63,20 @@ php think mtr:import ../world/mtr/minecraft/overworld.zip \
 
 ## API
 
-| 方法 | 路径 | 功能 |
-|---|---|---|
-| GET | `/health` | 健康检查，无鉴权 |
-| GET | `/api/v1/stations?q=广阳&dimension=minecraft/overworld` | 查车站，最多 500 条 |
-| GET | `/api/v1/journeys?origin=维度:车站nongID&destination=维度:车站ID&date=2026-10-04` | 区间车次及余票，最多 200 条 |
-| GET | `/api/v1/trips/{id}` | 班次逐站时刻 |
-| POST | `/api/v1/tickets` | 出票，需要 Idempotency-Key |
-| GET | `/api/v1/tickets/{票号}` | 本出票机构的电子客票及乘车联 |
-| POST | `/api/v1/tickets/{票号}/refund` | 整票退票，出发前可退 |
+| 方法 | 路径                                                                              | 功能                         |
+| ---- | --------------------------------------------------------------------------------- | ---------------------------- |
+| GET  | `/health`                                                                         | 健康检查，无鉴权             |
+| GET  | `/api/v1/stations?q=广阳&dimension=minecraft/overworld`                           | 查车站，最多 500 条          |
+| GET  | `/api/v1/journeys?origin=维度:车站nongID&destination=维度:车站ID&date=2026-10-04` | 区间车次及余票，最多 200 条  |
+| GET  | `/api/v1/trips/{id}`                                                              | 班次逐站时刻                 |
+| POST | `/api/v1/tickets`                                                                 | 出票，需要 Idempotency-Key   |
+| GET  | `/api/v1/tickets/{票号}`                                                          | 本出票机构的电子客票及乘车联 |
+| POST | `/api/v1/tickets/{票号}/refund`                                                   | 整票退票，出发前可退         |
 
 出票 JSON：
 
 ```json
-{"trip_id":123,"origin_seq":0,"destination_seq":3,"passenger":"旅客名称"}
+{ "trip_id": 123, "origin_seq": 0, "destination_seq": 3, "passenger": "旅客名称" }
 ```
 
 `trip_id` 和站序均为 JSON 整数。站序从 0 开始，用车次查询返回的 origin_seq/destination_seq，支持同一站重复经过的明确区间。票价由后端按各限速档里程与公里单价计算，不接受客户端改价；可提交查询结果的 `fare_version` 检查改价。一次请求出票一人。相同机构及 Idempotency-Key 重试返回同一客票；换内容复用同一键返回 409。接口查询余票为即时快照，出票时以事务内库存检查为准。
@@ -116,17 +116,17 @@ php tests/management.php
 
 管理 API 使用原管理员签名身份：
 
-| 方法 | 路径 | 功能 |
-|---|---|---|
-| GET | `/api/v1/me` | 当前角色、出票方身份 |
-| GET | `/api/v1/trips?date=2026-10-04&operator=LOCAL&page=1` | 分页浏览班次（每页 30 条） |
-| GET / POST | `/api/v1/admin/operators` | 列出 / 创建运营方 |
-| PUT | `/api/v1/admin/operators/{code}` | 编辑名称、联系方式、启用状态 |
-| GET / POST | `/api/v1/admin/agencies` | 列出 / 创建出票方 |
-| PUT | `/api/v1/admin/agencies/{code}` | 编辑名称、联系方式、启用状态 |
-| PUT | `/api/v1/admin/agencies/{code}/operators` | 设置销售授权，JSON `{"operators":["LOCAL"]}` |
-| POST | `/api/v1/admin/agencies/{code}/key` | 生成或轮换出票方密钥 |
-| PUT | `/api/v1/admin/trips/{id}/operator` | 改班次运营方，JSON `{"operator_code":"LOCAL"}` |
+| 方法       | 路径                                                  | 功能                                           |
+| ---------- | ----------------------------------------------------- | ---------------------------------------------- |
+| GET        | `/api/v1/me`                                          | 当前角色、出票方身份                           |
+| GET        | `/api/v1/trips?date=2026-10-04&operator=LOCAL&page=1` | 分页浏览班次（每页 30 条）                     |
+| GET / POST | `/api/v1/admin/operators`                             | 列出 / 创建运营方                              |
+| PUT        | `/api/v1/admin/operators/{code}`                      | 编辑名称、联系方式、启用状态                   |
+| GET / POST | `/api/v1/admin/agencies`                              | 列出 / 创建出票方                              |
+| PUT        | `/api/v1/admin/agencies/{code}`                       | 编辑名称、联系方式、启用状态                   |
+| PUT        | `/api/v1/admin/agencies/{code}/operators`             | 设置销售授权，JSON `{"operators":["LOCAL"]}`   |
+| POST       | `/api/v1/admin/agencies/{code}/key`                   | 生成或轮换出票方密钥                           |
+| PUT        | `/api/v1/admin/trips/{id}/operator`                   | 改班次运营方，JSON `{"operator_code":"LOCAL"}` |
 
 创建运营方使用 `{"code":"GYRAIL","name":"广阳铁路","contact":"","active":1}`；创建出票方另加 `"issuer_code":"901"`，代码支持 A–Z、0–9（出票方另支持下划线与横线）。编辑用完整表单传 name/contact/active；active 为整数 0/1。
 
@@ -224,7 +224,6 @@ php think ticketing:clear-date --date=2026-10-04 --scope=all --execute
 
 新增验证：php tests/routes.php（真实站序及往返、环线、路径过期）和 php tests/clear-date.php（三种范围、跨午夜、历史版本、库存释放、其他日期隔离及回滚）。tests/management.php 也检查管理员预览、删除确认参数及机构权限。
 
-
 ## D/G/C/S 车次号、车厂归属及可选白名单
 
 线路名称先按每个 | 分段，再删除段内非 ASCII 字母、数字字符，统一为大写；采用第一个完全符合 D/G/C/S + 1–16 位数字的段。例如 G2113||服铁沁京局担当G2113 → G2113，G306 滨海北-广阳 → G306，保留 G0104 的前导零。K123、G1A、GCT5 和 G123/G124 等未匹配或含多个号的段不作车次号。按这些规则匹配的线路名（包括 S 前缀）均可参与筛选；不匹配的路线保留原显示和班次 ID。担当说明原文另由 duty 返回，名称中的 | 不再直接拼入主要车次显示。
@@ -246,6 +245,7 @@ train_number 存于 trips，只有普通索引，没有唯一约束。同一个�
 新建运营方默认不启用白名单；迁移现有运营方时保留原先必须授权的行为，默认开启。可在运营方表单或「运营方出票白名单」切换。原 agency_operators 表复用为白名单，原按出票方配置接口也继续操作同一列表，仅对白名单开启的运营方限制新出票。
 
 管理员接口：
+
 - GET /api/v1/admin/operators/{code}/agencies：返回 enabled 及带名称、状态的白名单。
 - POST 同路径，JSON {"agency_code":"LOCAL"}：添加，重复添加不增加记录。
 - DELETE /api/v1/admin/operators/{code}/agencies/{agency}：移除。
@@ -255,13 +255,12 @@ train_number 存于 trips，只有普通索引，没有唯一约束。同一个�
 
 新增 php tests/features.php 验证真实同号班次、时间段搜索、白名单销售限制、车厂归属与后续导入继承，数据库测试写入回滚。php tests/management.php 验证新增管理员接口。node tests/frontend-features.cjs 使用专用临时机构和车厂验证完整页面操作并自动清理；需先运行 8000 端口服务。
 
-
-
 ## 全局旅客证件库及运营方客票 TLV
 
 执行 php think ticketing:schema 升级现有数据库。工作台新增「旅客证件库」和「运营方客票 / TLV」两个页面。
 
 全局证件字段：
+
 - document_type：类型，1–32 字符，可使用 PASSPORT、ID_CARD 或自定义类型。
 - document_number：号码，1–80 字符，保留前导零；类型和号码去除首尾空格并将 ASCII 字母转为大写。
 - issuing_country：证件归属地三字母码，转大写；校验三字母格式，可用 CHN。未接入外部归属地码字典。
@@ -276,7 +275,15 @@ train_number 存于 trips，只有普通索引，没有唯一约束。同一个�
 GET /api/v1/passenger-documents 支持 document_type、document_number、issuing_country 精确查询，name 姓／名包含查询及 page 分页。GET /api/v1/passenger-documents/{id} 查详情，GET /api/v1/passenger-documents/{id}/history 查分页修改日志。POST 创建及 PUT /api/v1/passenger-documents/{id} 更新使用完整表单：
 
 ```json
-{"document_type":"PASSPORT","document_number":"E00001234","issuing_country":"CHN","birth_date":"1990-02-03","surname":"","given_name":"旅客名称","reason":"新增证件"}
+{
+  "document_type": "PASSPORT",
+  "document_number": "E00001234",
+  "issuing_country": "CHN",
+  "birth_date": "1990-02-03",
+  "surname": "",
+  "given_name": "旅客名称",
+  "reason": "新增证件"
+}
 ```
 
 修改时另传 "version":1。时间和 ID 不接受客户端指定；归属地不参与从姓名推断。一个人拥有多种证件时分别登记各证件。
@@ -284,7 +291,7 @@ GET /api/v1/passenger-documents 支持 document_type、document_number、issuing
 出票可传 document_id，姓名从证件库读取，并在客票保存出票当时的完整证件快照。全局证件后续更正不改历史客票；同一 Idempotency-Key 重试也不会因证件库变化而重复出票或冲突。原只传 passenger 的出票调用继续兼容，原有客票没有自动猜测证件信息。
 
 ```json
-{"trip_id":123,"origin_seq":0,"destination_seq":1,"document_id":456}
+{ "trip_id": 123, "origin_seq": 0, "destination_seq": 1, "document_id": 456 }
 ```
 
 工作台可在证件列表选择「用于出票」，或在出票区填写证件库 ID；客票查询会展示证件快照。
@@ -310,7 +317,7 @@ GET /api/v1/passenger-documents 支持 document_type、document_number、issuing
 JSON 值编码支持 utf8、hex、base64。length 可省略由服务器计算；传入时必须是实际值字节数。label 为可选人类可读说明，不参与二进制编码。单项值上限 65536 字节；UTF-8 中文按字节计长，二进制保留 00、FF 等任意字节。Base64 输入使用带标准填充的规范表示。输出返回 length、value、wire_base64 及 active。
 
 ```json
-{"tag":101,"encoding":"utf8","value":"中文","length":6,"label":"备注"}
+{ "tag": 101, "encoding": "utf8", "value": "中文", "length": 6, "label": "备注" }
 ```
 
 以上二进制 hex 为 0065 00000006 E4B8ADE69687。无需预先创建标签。TLV 记录追加后保持原值，纠错使用撤销旧项再追加新项；不设置有效期。流接口单次最多 1 MiB，超限可通过分页列表读取。
@@ -318,6 +325,7 @@ JSON 值编码支持 utf8、hex、base64。length 可省略由服务器计算；
 按运营日清客票时同时删除其 TLV 和 TLV 审计，预览返回 ticket_tlv、ticket_tlv_events 数量；全局证件及证件修改日志保留。已有客票不增加收费或更改库存规则。
 
 验证：
+
 ```bash
 php tests/passengers.php
 php tests/passenger-http.php
@@ -325,8 +333,6 @@ node tests/frontend-passengers.cjs
 ```
 
 测试覆盖证件唯一性、可忽略姓、服务端时间、并发版本、前后值日志、出票快照和幂等、UTF-8／二进制 TLV、重复标签、运营方隔离、密钥轮换、撤销日志及日清理。数据库服务测试写入回滚；HTTP 与浏览器使用专用临时证件／机构／客票并自动清理。
-
-
 
 ## 运行时间与里程
 
@@ -365,3 +371,21 @@ php tests/concurrency.php
 ```
 
 前端修改后在 `frontend/` 执行 `npm ci && npm run build`；已发布静态资源随本仓库提交。PHP 需要 OpenSSL 提供 SM3（可用 `openssl_digest('abc','sm3')` 检查），数据库为 MariaDB。存档相关测试要求本仓库旁有 `../world/mtr/minecraft/overworld` 和对应 ZIP，测试输入不随 GitHub 发布。浏览器测试需要已启动后端及 Playwright/Edge，可用环境变量指定工作台 URL 和浏览器通道。
+
+## 代码格式化
+
+使用 Prettier + PHP 插件统一维护 PHP、Vue、JavaScript/TypeScript、CSS/Less、JSON 和 Markdown。依赖版本在 `frontend/package-lock.json` 锁定，只需开发环境安装，线上 PHP 服务不需要 Node。
+
+在本仓库目录执行：
+
+```bash
+npm --prefix frontend ci
+npm --prefix frontend run format        # 自动整理源码与文档
+npm --prefix frontend run format:check  # 只检查，不写文件；不符合规范时退出码非 0
+```
+
+也可用 `composer format`、`composer format:check`，或在 `frontend/` 内执行 `npm run format`、`npm run format:check`。开发机需要可用的 Node/npm；PHP 和 Node 分别装在 Windows/WSL 时，请在能访问 npm 的环境执行 npm 命令。
+
+项目规则：每行建议 120 字符，PHP 缩进 4 空格，前端缩进 2 空格，LF 换行；PHP 插件按 PHP 8.0 语法目标输出，避免格式化引入高于 composer 声明的语法要求。根目录 `prettier.config.mjs` 与前端共用 `.prettierrc.js`，编辑器的 Prettier 扩展可自动读取；`.editorconfig` 提供通用缩进与换行设置。
+
+格式化忽略 `vendor/`、`runtime/`、`public/`、`extend/`、`view/`、框架 CLI 入口 `think`、`node_modules/`、`dist/`、环境文件和锁定的上游文档。只整理维护中的纯 PHP 源码，不处理 PHP/HTML 混合模板或生成资源。修改前端源码后仍按正常流程执行构建发布。

@@ -52,10 +52,16 @@ class ExceptionHandle extends Handle
     {
         // API errors always use the same JSON envelope, independently of Accept.
         if (str_starts_with($request->pathinfo(), 'api/')) {
-            if ($e instanceof HttpResponseException) return $e->getResponse();
-            if ($e instanceof HttpException) return json(['error'=>$e->getMessage()], $e->getStatusCode());
-            if ($e instanceof ValidateException) return json(['error'=>$e->getMessage()], 422);
-            return json(['error'=>'Internal server error'], 500);
+            if ($e instanceof HttpResponseException) {
+                return $e->getResponse();
+            }
+            if ($e instanceof HttpException) {
+                return json(['error' => $e->getMessage()], $e->getStatusCode());
+            }
+            if ($e instanceof ValidateException) {
+                return json(['error' => $e->getMessage()], 422);
+            }
+            return json(['error' => 'Internal server error'], 500);
         }
 
         // 其他错误交给系统处理

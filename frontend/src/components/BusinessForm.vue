@@ -6,9 +6,24 @@ import { definitions, emitControl, formRules, models, registerFormReset } from '
 defineOptions({ inheritAttrs: false });
 const props = defineProps<{ id: string }>();
 const form = ref<FormInstanceFunctions>();
-const data = computed(() => Object.fromEntries((definitions[props.id].fields || []).map(field => [field, models[field].value])));
+const data = computed(() =>
+  Object.fromEntries((definitions[props.id].fields || []).map((field) => [field, models[field].value])),
+);
 const rules = computed(() => formRules(props.id));
 onMounted(() => registerFormReset(props.id, () => form.value?.clearValidate()));
-function submit(context: SubmitContext) { if (context.validateResult === true) void emitControl(props.id, 'submit', context.e as Event); }
+function submit(context: SubmitContext) {
+  if (context.validateResult === true) void emitControl(props.id, 'submit', context.e as Event);
+}
 </script>
-<template><Form :id="id" ref="form" :data="data" :rules="rules" label-align="top" scroll-to-first-error="smooth" @submit="submit"><slot /></Form></template>
+<template>
+  <Form
+    :id="id"
+    ref="form"
+    :data="data"
+    :rules="rules"
+    label-align="top"
+    scroll-to-first-error="smooth"
+    @submit="submit"
+    ><slot
+  /></Form>
+</template>
