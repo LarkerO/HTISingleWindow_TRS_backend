@@ -1,8 +1,8 @@
 # MTR 电子客票系统外部接口对接文档
 
 - 接口版本：`/api/v1`
-- 文档版本：1.0
-- 更新日期：2026-10-03（北京时间）
+- 文档版本：1.1
+- 更新日期：2026-10-25（北京时间）
 - 适用范围：外部出票系统、运营方客票管理系统及受授权的管理系统
 - 本文按当前已实现接口编写。示例中的机构、车次、证件、票号和密钥均为占位或虚构数据，不能直接作为有效业务数据使用。
 
@@ -28,7 +28,11 @@
 接口采用 HTTP + JSON，JSON 文本编码为 UTF-8。POST、PUT 和带请求体的 DELETE 使用：
 
 ```http
-X-API-Key: <服务方分配的密钥>
+X-API-Key-Id: <SM3 派生的密钥标识>
+X-Timestamp: <Unix 秒>
+X-Nonce: <32位随机hex>
+X-Signature-Algorithm: HMAC-SM3-V1
+X-Signature: <64位hex>
 Content-Type: application/json
 Accept: application/json
 ```
@@ -96,6 +100,8 @@ Accept: application/json
 车次号一天内可重复。请结合日期、区间、时刻、担当说明和班次 ID 选择具体班次。环线重复经过同一车站时，需保留查询结果的两端停站序号，不能自行按站名推导。
 
 ## 2. 认证与权限
+
+全部业务调用强制请求签名，并要求调用方验证响应签名；完整规范串、时间戳、nonce、防重放及 OTA 示例见 [HMAC-SM3 双向认证协议](sm3-auth.md)。原 API key 继续使用，但不直接传输密钥。单独传旧 `X-API-Key` 返回 401。`/health` 无鉴权。API 响应含 `meta.request` 的耗时与内存指标，并有对应响应头和请求 ID。
 
 ### 2.1 密钥角色
 
@@ -263,7 +269,7 @@ Accept: application/json
 | `depot_operator_code` | 车厂归属运营方，可能为 null |
 | `operator_assignment` | `depot` 表示按车厂归属，`trip` 表示班次配置 |
 | `capacity` | 区间容量 |
-| `fare_per_segment` | 每相邻停站区间的最小单位票价 |
+| `fare_per_segment` | 历史兼容字段，不参与新票定价；使用区间报价返回的 amount_minor |
 | `origin`、`destination` | 列表中的首末停站对象 |
 
 车次号从线路名按 `|` 分段，删除非 ASCII 字母和数字、转大写后，取第一个完整匹配 D/G/C/S + 1–16 位数字的段。前导零保留。其他前缀不提取车次号。
@@ -323,7 +329,7 @@ Accept: application/json
 }
 ```
 
-`available` 是所选区间各相邻停站区间剩余容量的最小值。`amount_minor = fare_per_segment × (destination_seq - origin_seq)`。结果可能包含余票为 0 的区间，也不按出票白名单预过滤；能否销售以出票校验为准。
+`available` 是所选区间各相邻停站区间剩余容量的最小值。`amount_minor` 为各轨道标称限速档的区间里程乘公里单价的合计，最终四舍五入到分，详见 [里程计费](mileage-fares.md)。结果同时含 `fare_version`、`fare_breakdown`、`distance_m` 和 `fare_available`；缺里程时金额为 null 且禁止新出票。出票建议附 `fare_version`，改价后旧版本返回 409。结果可能包含余票为 0 的区间，也不按出票白名单预过滤；能否销售以出票校验为准。
 
 ## 5. 全局旅客证件库
 
@@ -551,36 +557,19 @@ Idempotency-Key: order-20261004-000001
 | OPEN | 已出票且未退票，乘车联占用区间库存 |
 | RFND | 已退票，乘车联不再占用库存 |
 
-### 6.5 curl 调用示例
+### 6.5 已签名调用示例
 
-以下为 Bash 示例，先配置真实部署地址和服务方分配的出票方密钥。
+旧的单独携带 API key 的 curl 方式已关闭。使用 [PHP OTA 示例](../examples/signed-request.php) 构建签名并验证响应；算法规范见 [双向认证文档](sm3-auth.md)。
 
 ```bash
-export BASE_URL='http://localhost:8000'
-export API_KEY='<出票方密钥>'
-
-curl -sS "$BASE_URL/api/v1/me" -H "X-API-Key: $API_KEY"
-
-curl -sS --get "$BASE_URL/api/v1/journeys" \
-  -H "X-API-Key: $API_KEY" \
-  --data-urlencode 'origin=minecraft/overworld:10001' \
-  --data-urlencode 'destination=minecraft/overworld:10002' \
-  --data-urlencode 'date=2026-10-04' \
-  --data-urlencode 'time_from=08:00' \
-  --data-urlencode 'time_to=12:00'
-
-curl -sS "$BASE_URL/api/v1/tickets" \
-  -H "X-API-Key: $API_KEY" \
-  -H 'Content-Type: application/json' \
-  -H 'Idempotency-Key: order-20261004-000001' \
-  --data '{"trip_id":123,"origin_seq":0,"destination_seq":3,"document_id":456}'
-
-curl -sS "$BASE_URL/api/v1/tickets/1230000000001" \
-  -H "X-API-Key: $API_KEY"
-
-curl -sS -X POST "$BASE_URL/api/v1/tickets/1230000000001/refund" \
-  -H "X-API-Key: $API_KEY"
+# TICKETING_API_KEY 和 API_BASE_URL 由调用进程环境提供
+php examples/signed-request.php /api/v1/me
+php examples/signed-request.php '/api/v1/journeys?origin=...&destination=...&date=2026-10-25'
+# 出票时设置 IDEMPOTENCY_KEY，JSON 请求体在 request.json 中
+php examples/signed-request.php /api/v1/tickets POST request.json
 ```
+
+重试用新 nonce 和时间戳，保留原出票幂等键与请求体。必须对最终发出的原始路径、查询串和请求体签名。
 
 ## 7. 运营方客票与 TLV
 
@@ -918,3 +907,11 @@ counts 为所选 scope 实际涉及的表数量，不涉及的表为 0。timetab
 执行清理属于永久删除，调用方应使用预览结果展示实际范围并确认日期；清理后的旧班次、票号、TLV ID 以及出票幂等记录不可继续使用。
 
 
+
+## 11. 单价管理与性能指标
+
+管理员使用 `GET /api/v1/admin/fare-rates` 获取完整版本化单价表，以 `PUT` 提交 `{version,rates}` 更新。单价单位为最小货币单位/公里，严格随速度递增。详情及演示单价见 [里程计费](mileage-fares.md)。
+
+新票的 `fare_snapshot` 保存原始计费金额、单价版本及各档里程，旧票快照为 null。费率更新不会重算已出票金额。
+
+每个 API 响应（含错误）在 `meta.request` 中返回 `request_id`、`duration_ms`、`memory_delta_bytes`、`memory_peak_bytes` 和 `memory_scope`，并提供 `X-Request-Id`、`X-Process-Time-Ms`、`X-Memory-Delta-Bytes`、`X-Memory-Peak-Bytes`、`Server-Timing`。计量边界及双向验签规则见 [认证与指标协议](sm3-auth.md)。

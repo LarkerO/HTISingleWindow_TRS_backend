@@ -17,6 +17,7 @@ return [
 
     // 日志通道列表
     'channels'     => [
+        'requests' => ['type'=>'File','path'=>app()->getRuntimePath().'requests','single'=>false,'max_files'=>30,'json'=>true,'realtime_write'=>true],
         'file' => [
             // 日志记录方式
             'type'           => 'File',

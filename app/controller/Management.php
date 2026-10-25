@@ -5,6 +5,8 @@ use think\exception\HttpException;
 use app\service\Organizations;
 final class Management
 {
+    public function fareRates(){return json(['data'=>\app\service\FarePricing::policy()]);}
+    public function updateFareRates(Request $r){return json(['data'=>\app\service\FarePricing::update($this->body($r))]);}
     private function body(Request $r): array { $b=json_decode($r->getContent(),true); if(!is_array($b)||array_is_list($b)) throw new HttpException(422,'JSON object required'); return $b; }
     public function clearDate(Request $r) {
         $b=$this->body($r);

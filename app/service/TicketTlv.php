@@ -29,6 +29,7 @@ final class TicketTlv
     }
     public function get(string $number,string $operator,array $identity): array {
         $this->checkActor($identity,$operator);$ticket=$this->ticket($number,$operator);
+        $ticket['fare_snapshot']=$ticket['fare_snapshot']?json_decode($ticket['fare_snapshot'],true):null;
         $ticket['passenger_document_snapshot']=$ticket['passenger_document_snapshot']?json_decode($ticket['passenger_document_snapshot'],true):null;
         $ticket['coupons']=Db::table('coupons')->alias('c')->join('trips t','t.id=c.trip_id')->where('c.ticket_id',$ticket['id'])->where('t.operator_code',$operator)->field('c.*')->select()->toArray();
         foreach($ticket['coupons'] as &$coupon){

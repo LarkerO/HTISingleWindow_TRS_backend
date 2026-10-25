@@ -1,12 +1,13 @@
 <?php
 require dirname(__DIR__).'/vendor/autoload.php';
+require __DIR__.'/signed-http.php';
 $app=new think\App(dirname(__DIR__)); $app->initialize();
 $port=18764; $pipes=[];
 $proc=proc_open([PHP_BINARY,'-S','127.0.0.1:'.$port,'-t',dirname(__DIR__).'/public',dirname(__DIR__).'/public/router.php'],[0=>['pipe','r'],1=>['file',dirname(__DIR__).'/runtime/http-test.log','a'],2=>['file',dirname(__DIR__).'/runtime/http-test.log','a']],$pipes,dirname(__DIR__));
 if(!is_resource($proc)) throw new RuntimeException('Cannot start test HTTP server');
 function request(string $path,?string $key=null): array {
     global $port;
-    $c=curl_init('http://127.0.0.1:'.$port.$path); curl_setopt_array($c,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>10,CURLOPT_HTTPHEADER=>$key?['X-API-Key: '.$key]:[]]);
+    $c=curl_init('http://127.0.0.1:'.$port.$path); curl_setopt_array($c,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>10,CURLOPT_HTTPHEADER=>$key?signedHeaders($key,'GET',$path):[]]);
     $body=curl_exec($c); $status=curl_getinfo($c,CURLINFO_HTTP_CODE); curl_close($c); return [$status,json_decode($body?:'',true)];
 }
 try {

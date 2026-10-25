@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
-require dirname(__DIR__).'/vendor/autoload.php';$app=new think\App(dirname(__DIR__));$app->initialize();
+require dirname(__DIR__).'/vendor/autoload.php';
+require __DIR__.'/signed-http.php';$app=new think\App(dirname(__DIR__));$app->initialize();
 $suffix=strtoupper(bin2hex(random_bytes(5)));$port=18766;$server=null;$fixture=null;
 function fixture(string $mode):array{
  global $suffix;$pipes=[];$proc=proc_open([PHP_BINARY,__DIR__.'/passenger-fixture.php',$mode,$suffix],[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes,dirname(__DIR__));
@@ -10,7 +11,7 @@ function fixture(string $mode):array{
 }
 function call(string $path,string $key,string $method='GET',?array $body=null,array $extra=[]):array{
  global $port;$curl=curl_init('http://127.0.0.1:'.$port.$path);
- curl_setopt_array($curl,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>10,CURLOPT_CUSTOMREQUEST=>$method,CURLOPT_HTTPHEADER=>array_merge(['X-API-Key: '.$key,'Content-Type: application/json'],$extra)]);
+ curl_setopt_array($curl,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>10,CURLOPT_CUSTOMREQUEST=>$method,CURLOPT_HTTPHEADER=>signedHeaders($key,$method,$path,$body,array_merge(['Content-Type: application/json'],$extra))]);
  if($body!==null)curl_setopt($curl,CURLOPT_POSTFIELDS,json_encode($body));
  $raw=curl_exec($curl);$status=curl_getinfo($curl,CURLINFO_HTTP_CODE);curl_close($curl);return [$status,json_decode($raw?:'',true)];
 }

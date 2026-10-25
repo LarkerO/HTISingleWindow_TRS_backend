@@ -5,6 +5,7 @@ use think\facade\Db;
 final class FeatureSchema
 {
     public static function migrate(): void {
+        Db::execute('ALTER TABLE stops ADD COLUMN IF NOT EXISTS distance_m DECIMAL(14,3) NULL');
         Db::execute('ALTER TABLE trips ADD COLUMN IF NOT EXISTS train_number VARCHAR(17) NULL AFTER name');
         Db::execute('ALTER TABLE trips ADD INDEX IF NOT EXISTS train_number_date (train_number,service_date,active)');
         // Keep existing agencies' sales restrictions; newly-created operators default to open.

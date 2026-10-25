@@ -1,9 +1,10 @@
 <?php
 require dirname(__DIR__).'/vendor/autoload.php';
+require __DIR__.'/signed-http.php';
 $app=new think\App(dirname(__DIR__));$app->initialize();
 use think\facade\Db;
 $port=18766;$pipes=[];$proc=proc_open([PHP_BINARY,'-S','127.0.0.1:'.$port,'-t',dirname(__DIR__).'/public',dirname(__DIR__).'/public/router.php'],[0=>['pipe','r'],1=>['file',dirname(__DIR__).'/runtime/depot-test.log','a'],2=>['file',dirname(__DIR__).'/runtime/depot-test.log','a']],$pipes,dirname(__DIR__));
-function getApi(string $path): array { global $port;$c=curl_init('http://127.0.0.1:'.$port.$path);curl_setopt_array($c,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>10,CURLOPT_HTTPHEADER=>['X-API-Key: '.config('ticketing.api_key')]]);$raw=curl_exec($c);$code=curl_getinfo($c,CURLINFO_HTTP_CODE);curl_close($c);return [$code,json_decode($raw?:'',true)]; }
+function getApi(string $path): array { global $port;$c=curl_init('http://127.0.0.1:'.$port.$path);curl_setopt_array($c,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>10,CURLOPT_HTTPHEADER=>signedHeaders(config('ticketing.api_key'),'GET',$path)]);$raw=curl_exec($c);$code=curl_getinfo($c,CURLINFO_HTTP_CODE);curl_close($c);return [$code,json_decode($raw?:'',true)]; }
 function verify(bool $condition,string $text): void { if(!$condition)throw new RuntimeException($text);echo 'PASS '.$text.PHP_EOL; }
 try{
     for($i=0;$i<30;$i++){usleep(100000);if(getApi('/health')[0]===200)break;}

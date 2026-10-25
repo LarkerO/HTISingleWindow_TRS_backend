@@ -46,7 +46,7 @@ final class Importer
                 $rows=[];
                 foreach($trip['stops'] as $seq=>$s) {
                     $format=fn($offset)=>$midnight->modify('+'.intdiv($trip['departure_ms']+$offset,1000).' seconds')->format('Y-m-d H:i:s').sprintf('.%03d',($trip['departure_ms']+$offset)%1000);
-                    $rows[]=['trip_id'=>$tid,'seq'=>$seq,'station_id'=>$dimension.':'.$s['station_id'],'platform_id'=>$s['platform_id'],'arrival_at'=>$format($s['arrival_offset_ms']),'departure_at'=>$format($s['departure_offset_ms'])];
+                    $rows[]=['trip_id'=>$tid,'seq'=>$seq,'station_id'=>$dimension.':'.$s['station_id'],'platform_id'=>$s['platform_id'],'arrival_at'=>$format($s['arrival_offset_ms']),'departure_at'=>$format($s['departure_offset_ms'])]+Mileage::relative($s,$trip['stops'][0]);
                 }
                 Db::table('stops')->insertAll($rows);
             }

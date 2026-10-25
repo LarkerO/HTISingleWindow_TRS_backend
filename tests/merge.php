@@ -25,6 +25,13 @@ try {
  $importer->import($data,$plan,'minecraft/overworld',$date,str_repeat('2',64),'LOCAL',888,888,true);
  foreach(Db::table('trips')->where('service_date',$date)->where('active',1)->select() as $r)if($byKey[$r['trip_key']]!=$r['id']||$r['capacity']!=77)throw new RuntimeException('Repeat merge changes ID or settings');
  echo 'PASS Directional reimport retains matching IDs and settings'.PHP_EOL;
+ foreach($rows as $r){
+  $calls=Db::table('stops')->where('trip_id',$r['id'])->order('seq')->select()->toArray();
+  if((float)$calls[0]['distance_m']!==0.0)throw new RuntimeException('Mileage origin not normalized');
+  $last=0.;foreach($calls as $call){if($call['distance_m']===null||(float)$call['distance_m']<$last)throw new RuntimeException('Invalid persisted mileage');$last=(float)$call['distance_m'];}
+ }
+ echo 'PASS Imported mileage starts at zero and stays monotonic'.PHP_EOL;
+
  $new=$first;$new['key']=hash('sha256','new-merge-test');$new['run_number']=999999;
  $plan['trips']=[$first,$new];
  $importer->import($data,$plan,'minecraft/overworld',$date,str_repeat('3',64),'LOCAL',999,999,true);

@@ -15,21 +15,23 @@ final class Ticketing
         return $minimum;
     }
     public function search(string $origin,string $destination,string $date,array $filters=[]): array {
-        $sql='SELECT t.*, a.seq origin_seq, b.seq destination_seq, a.departure_at, b.arrival_at FROM trips t JOIN stops a ON a.trip_id=t.id JOIN stops b ON b.trip_id=t.id JOIN operators o ON o.code=t.operator_code WHERE t.active=1 AND o.active=1 AND a.station_id=? AND b.station_id=? AND a.seq<b.seq AND a.departure_at>=? AND a.departure_at<?';
+        $sql='SELECT t.*, a.seq origin_seq, b.seq destination_seq, a.departure_at, b.arrival_at, (b.distance_m-a.distance_m) distance_m, a.speed_distances_m origin_speed_distances_m, b.speed_distances_m destination_speed_distances_m FROM trips t JOIN stops a ON a.trip_id=t.id JOIN stops b ON b.trip_id=t.id JOIN operators o ON o.code=t.operator_code WHERE t.active=1 AND o.active=1 AND a.station_id=? AND b.station_id=? AND a.seq<b.seq AND a.departure_at>=? AND a.departure_at<?';
         $bindings=[$origin,$destination,$date.' 00:00:00',(new \DateTimeImmutable($date,new \DateTimeZone('UTC')))->modify('+1 day')->format('Y-m-d').' 00:00:00'];
         $number=TripFilters::number($filters['train_number']??'');
         [$from,$to]=TripFilters::window($date,$filters['time_from']??'',$filters['time_to']??'');
         if($number!==null){$sql.=' AND t.train_number=?';$bindings[]=$number;}
         if($from!==null){$sql.=' AND a.departure_at>=?';$bindings[]=$from;}
         if($to!==null){$sql.=' AND a.departure_at<?';$bindings[]=$to;}
+        $policy=FarePricing::policy();
         $rows=Db::query($sql.' ORDER BY a.departure_at,t.id,a.seq,b.seq LIMIT 200',$bindings);
-        foreach($rows as &$r) { $r=TripIdentity::present($r); $r['available']=$this->available($r,(int)$r['origin_seq'],(int)$r['destination_seq']); $r['amount_minor']=(int)$r['fare_per_segment']*((int)$r['destination_seq']-(int)$r['origin_seq']); $r['currency']=config('ticketing.currency'); }
+        foreach($rows as &$r) { $r=TripIdentity::present($r); $r['available']=$this->available($r,(int)$r['origin_seq'],(int)$r['destination_seq']); try{$r=array_merge($r,FarePricing::quote(['speed_distances_m'=>$r['origin_speed_distances_m']],['speed_distances_m'=>$r['destination_speed_distances_m']],$policy));$r['fare_available']=true;}catch(HttpException $e){$r['amount_minor']=null;$r['fare_available']=false;$r['fare_error']=$e->getMessage();$r['available']=0;}unset($r['origin_speed_distances_m'],$r['destination_speed_distances_m']); $r['currency']=config('ticketing.currency'); }
         return $rows;
     }
     public function get(string $number,string $agency): array {
         $t=Db::table('tickets')->where('ticket_number',$number)->where('agency_code',$agency)->find();
         if(!$t) $this->fail('Ticket not found',404);
         $t['passenger_document_snapshot']=$t['passenger_document_snapshot']?json_decode($t['passenger_document_snapshot'],true):null;
+        $t['fare_snapshot']=$t['fare_snapshot']?json_decode($t['fare_snapshot'],true):null;
         $t['coupons']=Db::table('coupons')->where('ticket_id',$t['id'])->select()->toArray();
         foreach($t['coupons'] as &$c) { $c['trip']=TripIdentity::present(Db::table('trips')->where('id',$c['trip_id'])->find()); $c['origin']=Db::table('stops')->where('trip_id',$c['trip_id'])->where('seq',$c['origin_seq'])->find(); $c['destination']=Db::table('stops')->where('trip_id',$c['trip_id'])->where('seq',$c['destination_seq'])->find(); }
         return $t;
@@ -37,6 +39,7 @@ final class Ticketing
     public function issue(array $body,string $key,string $agency): array {
         if(!preg_match('/^[A-Za-z0-9_.:-]{1,100}$/',$key)) $this->fail('Idempotency-Key is required');
         foreach(['trip_id','origin_seq','destination_seq'] as $k) if(!isset($body[$k])||!is_int($body[$k])||$body[$k]<0) $this->fail('Expected nonnegative JSON integer: '.$k);
+        if(isset($body['fare_version'])&&(!is_int($body['fare_version'])||$body['fare_version']<1))$this->fail('fare_version must be a positive integer');
         $documentId=$body['document_id']??null;
         if(array_key_exists('document_id',$body)&&(!is_int($documentId)||$documentId<1))$this->fail('document_id must be a positive JSON integer');
         $passenger='';
@@ -47,6 +50,7 @@ final class Ticketing
         }
         $normalized=['trip_id'=>$body['trip_id'],'origin_seq'=>$body['origin_seq'],'destination_seq'=>$body['destination_seq'],'passenger'=>$passenger];
         if($documentId!==null)$normalized['document_id']=$documentId;
+        if(isset($body['fare_version']))$normalized['fare_version']=$body['fare_version'];
         $hash=hash('sha256',json_encode($normalized,JSON_UNESCAPED_UNICODE));
 
         try {
@@ -75,7 +79,9 @@ final class Ticketing
                 }
                 $number=$issuer.str_pad((string)random_int(0,9999999999),10,'0',STR_PAD_LEFT);
                 $alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; $pnr=''; for($i=0;$i<6;$i++) $pnr.=$alphabet[random_int(0,strlen($alphabet)-1)];
-                $tid=Db::table('tickets')->insertGetId(['ticket_number'=>$number,'pnr'=>$pnr,'issuer_code'=>$issuer,'agency_code'=>$agency,'passenger'=>$passenger,'passenger_document_id'=>$document['id']??null,'passenger_document_snapshot'=>$document?json_encode($document,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR):null,'amount_minor'=>($to-$from)*(int)$trip['fare_per_segment'],'currency'=>config('ticketing.currency'),'status'=>'OPEN']);
+                $quote=FarePricing::quote($origin,$destination,FarePricing::policy(true));
+                if(isset($normalized['fare_version'])&&$normalized['fare_version']!==$quote['fare_version'])$this->fail('Fare changed; query the interval again',409);
+                $tid=Db::table('tickets')->insertGetId(['ticket_number'=>$number,'pnr'=>$pnr,'issuer_code'=>$issuer,'agency_code'=>$agency,'passenger'=>$passenger,'passenger_document_id'=>$document['id']??null,'passenger_document_snapshot'=>$document?json_encode($document,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR):null,'fare_snapshot'=>json_encode($quote,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),'amount_minor'=>$quote['amount_minor'],'currency'=>config('ticketing.currency'),'status'=>'OPEN']);
                 Db::table('coupons')->insert(['ticket_id'=>$tid,'number'=>1,'trip_id'=>$trip['id'],'origin_seq'=>$from,'destination_seq'=>$to,'status'=>'OPEN']);
                 Db::table('requests')->insert(['agency_code'=>$agency,'request_key'=>$key,'body_hash'=>$hash,'ticket_id'=>$tid]);
                 Db::table('ticket_events')->insert(['ticket_id'=>$tid,'agency_code'=>$agency,'action'=>'ISSUE']);

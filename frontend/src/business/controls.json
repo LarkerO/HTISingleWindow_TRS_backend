@@ -1,0 +1,1301 @@
+{
+  "agencyContext": {
+    "kind": "select",
+    "label": "管理员代操作出票方",
+    "value": "",
+    "options": [
+      {
+        "value": "",
+        "label": "默认出票方"
+      }
+    ],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "origin": {
+    "kind": "select",
+    "label": "出发站",
+    "value": "",
+    "options": [
+      {
+        "value": "",
+        "label": "连接后加载车站"
+      }
+    ],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "destination": {
+    "kind": "select",
+    "label": "到达站",
+    "value": "",
+    "options": [
+      {
+        "value": "",
+        "label": "连接后加载车站"
+      }
+    ],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "tripOperator": {
+    "kind": "select",
+    "label": "运营方",
+    "value": "",
+    "options": [
+      {
+        "value": "",
+        "label": "全部运营方"
+      }
+    ],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "tripDepot": {
+    "kind": "select",
+    "label": "MTR 车厂",
+    "value": "",
+    "options": [
+      {
+        "value": "",
+        "label": "全部车厂"
+      }
+    ],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "tripIdMode": {
+    "kind": "radio",
+    "label": "班次 ID 显示",
+    "value": "compound",
+    "options": [
+      {
+        "value": "compound",
+        "label": "车厂ID + 股道ID + 趟次"
+      },
+      {
+        "value": "database",
+        "label": "数据库 ID"
+      }
+    ],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "operatorScope": {
+    "kind": "select",
+    "label": "管理的运营方",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "tlvEncoding": {
+    "kind": "select",
+    "label": "值编码",
+    "value": "utf8",
+    "options": [
+      {
+        "value": "utf8",
+        "label": "UTF-8 文本"
+      },
+      {
+        "value": "hex",
+        "label": "十六进制二进制"
+      },
+      {
+        "value": "base64",
+        "label": "Base64 二进制"
+      }
+    ],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": "tlvForm"
+  },
+  "tlvValue": {
+    "kind": "textarea",
+    "label": "值",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": "tlvForm",
+    "rows": "4"
+  },
+  "tlvWire": {
+    "kind": "textarea",
+    "label": "有效 TLV 流（Base64）",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": true,
+    "form": "",
+    "rows": "4"
+  },
+  "opWhitelist": {
+    "kind": "radio",
+    "label": "出票白名单",
+    "value": "0",
+    "options": [
+      {
+        "value": "0",
+        "label": "不启用，允许所有启用出票方"
+      },
+      {
+        "value": "1",
+        "label": "启用，仅允许白名单出票方"
+      }
+    ],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": "operatorForm"
+  },
+  "opActive": {
+    "kind": "radio",
+    "label": "状态",
+    "value": "1",
+    "options": [
+      {
+        "value": "1",
+        "label": "启用"
+      },
+      {
+        "value": "0",
+        "label": "停用"
+      }
+    ],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": "operatorForm"
+  },
+  "agActive": {
+    "kind": "radio",
+    "label": "状态",
+    "value": "1",
+    "options": [
+      {
+        "value": "1",
+        "label": "启用"
+      },
+      {
+        "value": "0",
+        "label": "停用"
+      }
+    ],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": "agencyForm"
+  },
+  "grantAgency": {
+    "kind": "select",
+    "label": "出票方",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "assignDepot": {
+    "kind": "select",
+    "label": "MTR 车厂",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "depotOperator": {
+    "kind": "select",
+    "label": "运营方",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "whitelistOperator": {
+    "kind": "select",
+    "label": "运营方",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "whitelistMode": {
+    "kind": "radio",
+    "label": "白名单模式",
+    "value": "0",
+    "options": [
+      {
+        "value": "0",
+        "label": "不启用：所有启用出票方可出票"
+      },
+      {
+        "value": "1",
+        "label": "启用：仅列表中的出票方可出票"
+      }
+    ],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "whitelistAgency": {
+    "kind": "select",
+    "label": "加入白名单的出票方",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "clearScope": {
+    "kind": "select",
+    "label": "清空范围",
+    "value": "all",
+    "options": [
+      {
+        "value": "all",
+        "label": "当日全部数据"
+      },
+      {
+        "value": "tickets",
+        "label": "当日客票"
+      },
+      {
+        "value": "timetable",
+        "label": "当日计划运行图"
+      }
+    ],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "assignOperator": {
+    "kind": "select",
+    "label": "运营方",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "apiKey": {
+    "kind": "password",
+    "label": "API Key",
+    "value": "",
+    "options": [],
+    "placeholder": "输入 .env 管理员密钥或出票方密钥",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": "",
+    "autocomplete": "off"
+  },
+  "journeyDate": {
+    "kind": "date",
+    "label": "上车日期（UTC）",
+    "value": "2026-10-04",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "journeyTrainNumber": {
+    "kind": "text",
+    "label": "车次号（可选）",
+    "value": "",
+    "options": [],
+    "placeholder": "如 G2113，同一天可有多趟",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "journeyTimeFrom": {
+    "kind": "time",
+    "label": "上车发车时间起（UTC）",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "journeyTimeTo": {
+    "kind": "time",
+    "label": "上车发车时间止（UTC，不含）",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "tripDate": {
+    "kind": "date",
+    "label": "运营日（UTC）",
+    "value": "2026-10-04",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "tripTrainNumber": {
+    "kind": "text",
+    "label": "车次号（可选）",
+    "value": "",
+    "options": [],
+    "placeholder": "D / G / C / S + 数字",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "tripTimeFrom": {
+    "kind": "time",
+    "label": "首站发车时间起（UTC）",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "tripTimeTo": {
+    "kind": "time",
+    "label": "首站发车时间止（UTC，不含）",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "issueDocumentId": {
+    "kind": "number",
+    "label": "证件库 ID（可选）",
+    "value": "",
+    "options": [],
+    "placeholder": "从旅客证件库选择",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": "",
+    "min": "1"
+  },
+  "passenger": {
+    "kind": "text",
+    "label": "旅客名称",
+    "value": "",
+    "options": [],
+    "placeholder": "Minecraft 玩家名 / 测试旅客",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": "",
+    "maxlength": "160"
+  },
+  "requestKey": {
+    "kind": "text",
+    "label": "幂等请求键",
+    "value": "",
+    "options": [],
+    "placeholder": "选择车次后自动生成",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "ticketNumber": {
+    "kind": "text",
+    "label": "13 位电子客票号",
+    "value": "",
+    "options": [],
+    "placeholder": "例如 999 开头的 13 位票号",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": "",
+    "maxlength": "13"
+  },
+  "docSearchType": {
+    "kind": "text",
+    "label": "证件类型",
+    "value": "",
+    "options": [],
+    "placeholder": "PASSPORT / ID_CARD",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "docSearchNumber": {
+    "kind": "text",
+    "label": "证件号码（精确）",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "docSearchCountry": {
+    "kind": "text",
+    "label": "归属地三字母码",
+    "value": "",
+    "options": [],
+    "placeholder": "CHN",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": "",
+    "maxlength": "3"
+  },
+  "docSearchName": {
+    "kind": "text",
+    "label": "姓名",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "documentType": {
+    "kind": "text",
+    "label": "证件类型",
+    "value": "PASSPORT",
+    "options": [],
+    "placeholder": "",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": "documentForm",
+    "maxlength": "32"
+  },
+  "documentNumber": {
+    "kind": "text",
+    "label": "证件号码",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": "documentForm",
+    "maxlength": "80"
+  },
+  "documentCountry": {
+    "kind": "text",
+    "label": "证件归属地（三字母码）",
+    "value": "",
+    "options": [],
+    "placeholder": "CHN",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": "documentForm",
+    "maxlength": "3",
+    "pattern": "[A-Za-z]{3}"
+  },
+  "documentBirthDate": {
+    "kind": "date",
+    "label": "出生日期",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": "documentForm"
+  },
+  "documentSurname": {
+    "kind": "text",
+    "label": "姓（可留空）",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": "documentForm",
+    "maxlength": "80"
+  },
+  "documentGivenName": {
+    "kind": "text",
+    "label": "名",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": "documentForm",
+    "maxlength": "80"
+  },
+  "documentReason": {
+    "kind": "text",
+    "label": "添加／修改原因",
+    "value": "新增证件",
+    "options": [],
+    "placeholder": "",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": "documentForm",
+    "maxlength": "500"
+  },
+  "operatorTicketDate": {
+    "kind": "date",
+    "label": "班次运营日（可选，UTC）",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "operatorTicketNumber": {
+    "kind": "text",
+    "label": "13 位客票号",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": "",
+    "maxlength": "13"
+  },
+  "tlvTag": {
+    "kind": "number",
+    "label": "标签（0–65535）",
+    "value": "1",
+    "options": [],
+    "placeholder": "",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": "tlvForm",
+    "min": "0",
+    "max": "65535"
+  },
+  "tlvLabel": {
+    "kind": "text",
+    "label": "标签说明（可选）",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": "tlvForm",
+    "maxlength": "160"
+  },
+  "opCode": {
+    "kind": "text",
+    "label": "代码（创建后不可修改）",
+    "value": "",
+    "options": [],
+    "placeholder": "如 GYRAIL",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": "operatorForm",
+    "maxlength": "16",
+    "pattern": "[A-Z0-9]{1,16}"
+  },
+  "opName": {
+    "kind": "text",
+    "label": "名称",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": "operatorForm",
+    "maxlength": "160"
+  },
+  "opContact": {
+    "kind": "text",
+    "label": "联系方式",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": "operatorForm",
+    "maxlength": "255"
+  },
+  "agCode": {
+    "kind": "text",
+    "label": "代码（创建后不可修改）",
+    "value": "",
+    "options": [],
+    "placeholder": "如 AGENCY01",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": "agencyForm",
+    "maxlength": "32",
+    "pattern": "[A-Z0-9_-]{1,32}"
+  },
+  "agName": {
+    "kind": "text",
+    "label": "名称",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": "agencyForm",
+    "maxlength": "160"
+  },
+  "agIssuer": {
+    "kind": "text",
+    "label": "票号前缀（三位数字，创建后不可修改）",
+    "value": "",
+    "options": [],
+    "placeholder": "如 901",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": "agencyForm",
+    "maxlength": "3",
+    "pattern": "[0-9]{3}"
+  },
+  "agContact": {
+    "kind": "text",
+    "label": "联系方式",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": "agencyForm",
+    "maxlength": "255"
+  },
+  "clearDate": {
+    "kind": "date",
+    "label": "运营日（UTC）",
+    "value": "2026-10-04",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "clearConfirm": {
+    "kind": "text",
+    "label": "输入同一日期以确认删除",
+    "value": "",
+    "options": [],
+    "placeholder": "YYYY-MM-DD",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": "",
+    "autocomplete": "off"
+  },
+  "assignTripId": {
+    "kind": "number",
+    "label": "班次 ID",
+    "value": "",
+    "options": [],
+    "placeholder": "",
+    "required": false,
+    "disabled": false,
+    "readonly": false,
+    "form": "",
+    "min": "1"
+  },
+  "documentForm": {
+    "kind": "form",
+    "fields": [
+      "documentType",
+      "documentNumber",
+      "documentCountry",
+      "documentBirthDate",
+      "documentSurname",
+      "documentGivenName",
+      "documentReason"
+    ],
+    "submit": "documentFormSubmit"
+  },
+  "tlvForm": {
+    "kind": "form",
+    "fields": [
+      "tlvTag",
+      "tlvLabel",
+      "tlvEncoding",
+      "tlvValue"
+    ],
+    "submit": "tlvFormSubmit"
+  },
+  "operatorForm": {
+    "kind": "form",
+    "fields": [
+      "opCode",
+      "opName",
+      "opContact",
+      "opWhitelist",
+      "opActive"
+    ],
+    "submit": "operatorFormSubmit"
+  },
+  "agencyForm": {
+    "kind": "form",
+    "fields": [
+      "agCode",
+      "agName",
+      "agIssuer",
+      "agContact",
+      "agActive"
+    ],
+    "submit": "agencyFormSubmit"
+  },
+  "connect": {
+    "kind": "button",
+    "label": "连接",
+    "variant": "base",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "disconnect": {
+    "kind": "button",
+    "label": "清除密钥",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "search": {
+    "kind": "button",
+    "label": "查询",
+    "variant": "base",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "swap": {
+    "kind": "button",
+    "label": "交换",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "browse": {
+    "kind": "button",
+    "label": "加载班次",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "prev": {
+    "kind": "button",
+    "label": "上一页",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "next": {
+    "kind": "button",
+    "label": "下一页",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "newKey": {
+    "kind": "button",
+    "label": "新请求键",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "issue": {
+    "kind": "button",
+    "label": "出票",
+    "variant": "base",
+    "theme": "primary",
+    "type": "button",
+    "disabled": true
+  },
+  "lookup": {
+    "kind": "button",
+    "label": "查询客票",
+    "variant": "base",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "refund": {
+    "kind": "button",
+    "label": "退票",
+    "variant": "outline",
+    "theme": "danger",
+    "type": "button",
+    "disabled": false
+  },
+  "docSearch": {
+    "kind": "button",
+    "label": "查询证件",
+    "variant": "base",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "docPrev": {
+    "kind": "button",
+    "label": "上一页",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "docNext": {
+    "kind": "button",
+    "label": "下一页",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "documentFormSubmit": {
+    "kind": "button",
+    "label": "保存证件",
+    "variant": "base",
+    "theme": "primary",
+    "type": "submit",
+    "disabled": false
+  },
+  "newDocument": {
+    "kind": "button",
+    "label": "新增另一证件",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "documentHistoryPrev": {
+    "kind": "button",
+    "label": "上一页日志",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": true
+  },
+  "documentHistoryNext": {
+    "kind": "button",
+    "label": "下一页日志",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": true
+  },
+  "operatorBrowse": {
+    "kind": "button",
+    "label": "加载客票",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "operatorPrev": {
+    "kind": "button",
+    "label": "上一页",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "operatorNext": {
+    "kind": "button",
+    "label": "下一页",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "operatorLookup": {
+    "kind": "button",
+    "label": "读取客票",
+    "variant": "base",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "tlvFormSubmit": {
+    "kind": "button",
+    "label": "追加到本运营方客票",
+    "variant": "base",
+    "theme": "primary",
+    "type": "submit",
+    "disabled": false
+  },
+  "tlvPrev": {
+    "kind": "button",
+    "label": "上一页",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "tlvNext": {
+    "kind": "button",
+    "label": "下一页",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "tlvExport": {
+    "kind": "button",
+    "label": "导出有效 TLV 流",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "operatorFormSubmit": {
+    "kind": "button",
+    "label": "保存运营方",
+    "variant": "base",
+    "theme": "primary",
+    "type": "submit",
+    "disabled": false
+  },
+  "resetOperator": {
+    "kind": "button",
+    "label": "新建",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "agencyFormSubmit": {
+    "kind": "button",
+    "label": "保存出票方",
+    "variant": "base",
+    "theme": "primary",
+    "type": "submit",
+    "disabled": false
+  },
+  "resetAgency": {
+    "kind": "button",
+    "label": "新建",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "saveGrants": {
+    "kind": "button",
+    "label": "保存运营方授权",
+    "variant": "base",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "rotateKey": {
+    "kind": "button",
+    "label": "生成 / 重置出票方密钥",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "saveDepotOperator": {
+    "kind": "button",
+    "label": "划归运营方",
+    "variant": "base",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "saveWhitelistMode": {
+    "kind": "button",
+    "label": "保存模式",
+    "variant": "base",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "rotateOperatorKey": {
+    "kind": "button",
+    "label": "生成 / 重置运营方密钥",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "addWhitelistAgency": {
+    "kind": "button",
+    "label": "添加出票方",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "clearPreview": {
+    "kind": "button",
+    "label": "预览范围",
+    "variant": "outline",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "clearExecute": {
+    "kind": "button",
+    "label": "永久清空所选数据",
+    "variant": "outline",
+    "theme": "danger",
+    "type": "button",
+    "disabled": true
+  },
+  "assign": {
+    "kind": "button",
+    "label": "保存",
+    "variant": "base",
+    "theme": "primary",
+    "type": "button",
+    "disabled": false
+  },
+  "status": {
+    "kind": "notice",
+    "text": "",
+    "visible": false,
+    "theme": "info"
+  },
+  "selectedJourney": {
+    "kind": "notice",
+    "text": "先在查询结果中选择车次。",
+    "visible": true,
+    "theme": "info"
+  },
+  "depotOwnerStatus": {
+    "kind": "notice",
+    "text": "",
+    "visible": true,
+    "theme": "info"
+  },
+  "keyResult": {
+    "kind": "notice",
+    "text": "",
+    "visible": false,
+    "theme": "warning"
+  },
+  "operatorKeyResult": {
+    "kind": "notice",
+    "text": "",
+    "visible": false,
+    "theme": "warning"
+  },
+  "fareRate2": {
+    "kind": "number",
+    "label": "2 km/h · 分/公里",
+    "value": "5",
+    "min": "0",
+    "max": "1000000",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "fareRate20": {
+    "kind": "number",
+    "label": "20 km/h · 分/公里",
+    "value": "10",
+    "min": "0",
+    "max": "1000000",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "fareRate30": {
+    "kind": "number",
+    "label": "30 km/h · 分/公里",
+    "value": "12",
+    "min": "0",
+    "max": "1000000",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "fareRate40": {
+    "kind": "number",
+    "label": "40 km/h · 分/公里",
+    "value": "15",
+    "min": "0",
+    "max": "1000000",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "fareRate60": {
+    "kind": "number",
+    "label": "60 km/h · 分/公里",
+    "value": "20",
+    "min": "0",
+    "max": "1000000",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "fareRate80": {
+    "kind": "number",
+    "label": "80 km/h · 分/公里",
+    "value": "25",
+    "min": "0",
+    "max": "1000000",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "fareRate120": {
+    "kind": "number",
+    "label": "120 km/h · 分/公里",
+    "value": "35",
+    "min": "0",
+    "max": "1000000",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "fareRate160": {
+    "kind": "number",
+    "label": "160 km/h · 分/公里",
+    "value": "45",
+    "min": "0",
+    "max": "1000000",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "fareRate200": {
+    "kind": "number",
+    "label": "200 km/h · 分/公里",
+    "value": "55",
+    "min": "0",
+    "max": "1000000",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "fareRate300": {
+    "kind": "number",
+    "label": "300 km/h · 分/公里",
+    "value": "75",
+    "min": "0",
+    "max": "1000000",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "fareRate900": {
+    "kind": "number",
+    "label": "900 km/h · 分/公里",
+    "value": "150",
+    "min": "0",
+    "max": "1000000",
+    "required": true,
+    "disabled": false,
+    "readonly": false,
+    "form": ""
+  },
+  "saveFareRates": {
+    "kind": "button",
+    "label": "保存公里单价",
+    "theme": "primary",
+    "variant": "base",
+    "type": "button",
+    "disabled": false
+  },
+  "reloadFareRates": {
+    "kind": "button",
+    "label": "重新加载单价",
+    "theme": "default",
+    "variant": "base",
+    "type": "button",
+    "disabled": false
+  }
+}

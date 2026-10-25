@@ -14,6 +14,8 @@ final class Schema extends Command
         Db::execute('ALTER TABLE mtr_depots ADD COLUMN IF NOT EXISTS present TINYINT NOT NULL DEFAULT 1');
         foreach(['passengers.sql','ticket_tlv.sql'] as $file)foreach(explode(';',file_get_contents(app()->getRootPath().'database/'.$file)) as $sql)if(trim($sql))Db::execute($sql);
         \app\service\FeatureSchema::migrate();
+        \app\service\SecuritySchema::migrate();
+        \app\service\FarePricing::migrate();
         \app\service\Organizations::seed();
         \app\service\TripIdentity::migrate();
         $output->writeln('Schema ready'); return 0;

@@ -1,11 +1,12 @@
 <?php
 require dirname(__DIR__).'/vendor/autoload.php';
+require __DIR__.'/signed-http.php';
 $app=new think\App(dirname(__DIR__));$app->initialize();
 use think\facade\Db;
 $port=18765;$pipes=[];$proc=proc_open([PHP_BINARY,'-S','127.0.0.1:'.$port,'-t',dirname(__DIR__).'/public',dirname(__DIR__).'/public/router.php'],[0=>['pipe','r'],1=>['file',dirname(__DIR__).'/runtime/management-test.log','a'],2=>['file',dirname(__DIR__).'/runtime/management-test.log','a']],$pipes,dirname(__DIR__));
 function callApi(string $path,string $key,string $method='GET',?array $body=null,array $headers=[]): array {
     global $port;$c=curl_init('http://127.0.0.1:'.$port.$path);
-    curl_setopt_array($c,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>10,CURLOPT_CUSTOMREQUEST=>$method,CURLOPT_HTTPHEADER=>array_merge(['X-API-Key: '.$key,'Content-Type: application/json'],$headers)]);
+    curl_setopt_array($c,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>10,CURLOPT_CUSTOMREQUEST=>$method,CURLOPT_HTTPHEADER=>signedHeaders($key,$method,$path,$body,array_merge(['Content-Type: application/json'],$headers))]);
     if($body!==null)curl_setopt($c,CURLOPT_POSTFIELDS,json_encode($body));
     $raw=curl_exec($c);$status=curl_getinfo($c,CURLINFO_HTTP_CODE);curl_close($c);return [$status,json_decode($raw?:'',true),$raw];
 }
@@ -15,12 +16,15 @@ $used=Db::table('agencies')->column('issuer_code');$prefix='';for($i=100;$i<999;
 try {
     for($i=0;$i<30;$i++){usleep(100000);if(callApi('/health',$admin)[0]===200)break;}
     expect(200,callApi('/api/v1/admin/operators',$admin),'Admin organization list');
+    $policy=expect(200,callApi('/api/v1/admin/fare-rates',$admin),'Admin mileage fare rates');
+    expect(422,callApi('/api/v1/admin/fare-rates',$admin,'PUT',['version'=>$policy['version'],'rates'=>[]]),'Invalid fare bands rejected');
     expect(201,callApi('/api/v1/admin/operators',$admin,'POST',['code'=>$op,'name'=>'Test operator','whitelist_enabled'=>1]),'Create operator');
     expect(201,callApi('/api/v1/admin/agencies',$admin,'POST',['code'=>$agency,'name'=>'Test agency','issuer_code'=>$prefix]),'Create agency');
     expect(409,callApi('/api/v1/admin/agencies',$admin,'POST',['code'=>$agency.'B','name'=>'Duplicate stock','issuer_code'=>$prefix]),'Unique ticket prefix');
     expect(200,callApi('/api/v1/admin/agencies/'.$agency.'/operators',$admin,'PUT',['operators'=>[$op]]),'Set sales authorization');
     $result=expect(200,callApi('/api/v1/admin/agencies/'.$agency.'/key',$admin,'POST',[]),'Generate agency key');$key=$result['api_key'];
     expect(200,callApi('/api/v1/me',$key),'Agency key authentication');
+    expect(403,callApi('/api/v1/admin/fare-rates',$key),'Agency cannot administer fares');
 
     expect(403,callApi('/api/v1/admin/operators/'.$op.'/agencies',$key),'Agency cannot manage operator whitelist');
     $wl=expect(200,callApi('/api/v1/admin/operators/'.$op.'/agencies',$admin),'Operator whitelist list');

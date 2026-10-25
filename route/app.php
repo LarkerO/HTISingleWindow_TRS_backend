@@ -29,6 +29,8 @@ Route::group('api/v1/operator',function(){
 
 Route::get('/',function(){return redirect('/test.html');});
 Route::group('api/v1/admin',function(){
+    Route::get('fare-rates','Management/fareRates');
+    Route::put('fare-rates','Management/updateFareRates');
     Route::post('clear-date','Management/clearDate');
     Route::get('operators','Management/operators');
     Route::post('operators','Management/createOperator');

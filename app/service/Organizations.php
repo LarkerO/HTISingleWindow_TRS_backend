@@ -71,7 +71,7 @@ final class Organizations
         $key=bin2hex(random_bytes(32));
         Db::transaction(function()use($code,$key){
             if(!Db::table('agencies')->where('code',$code)->lock(true)->find()) throw new HttpException(404,'Agency not found');
-            Db::table('agencies')->where('code',$code)->update(['api_key_hash'=>hash('sha256',$key)]);
+            Db::table('agencies')->where('code',$code)->update(['api_key_hash'=>hash('sha256',$key),'api_key_id'=>Sm3::keyId(Sm3::secret($key))]);
         });
         return ['agency_code'=>$code,'api_key'=>$key];
     }
@@ -79,7 +79,7 @@ final class Organizations
         $key=bin2hex(random_bytes(32));
         Db::transaction(function()use($code,$key){
             if(!Db::table('operators')->where('code',$code)->lock(true)->find())throw new HttpException(404,'Operator not found');
-            Db::table('operators')->where('code',$code)->update(['api_key_hash'=>hash('sha256',$key)]);
+            Db::table('operators')->where('code',$code)->update(['api_key_hash'=>hash('sha256',$key),'api_key_id'=>Sm3::keyId(Sm3::secret($key))]);
         });
         return ['operator_code'=>$code,'api_key'=>$key];
     }

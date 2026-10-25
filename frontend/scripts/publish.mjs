@@ -1,0 +1,10 @@
+import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+const root=new URL('../',import.meta.url);
+const target=new URL('../public/workbench/',root);
+await mkdir(target,{recursive:true});
+await cp(new URL('dist/assets/',root),new URL('assets/',target),{recursive:true});
+await cp(new URL('dist/index.html',root),new URL('index.html',target));
+const index=await readFile(new URL('dist/index.html',root),'utf8');
+await writeFile(new URL('../public/test.html',root),index.replaceAll('./assets/','/workbench/assets/'));
+console.log('Published workbench to '+fileURLToPath(target));

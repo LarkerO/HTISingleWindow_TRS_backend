@@ -1,31 +1,46 @@
-'use strict';
-const $ = id => document.getElementById(id);
+import { signRequest, verifyResponse } from './sm3-client';
+function mileage(value){return value==null?'里程待导入':`${(Number(value)/1000).toFixed(3)} km`;}
+import { useSessionStore } from '../store/session';
+import router from '../router';
+import { getControl, notify, setChoices, createAction, createSelect, renderTable, renderContent, grantChoices, confirmAction, requestReason } from './ui';
+export function initializeWorkbench() {
+const session = useSessionStore();
+const $ = getControl;
 let state={key:'',identity:null,operators:[],agencies:[],stations:new Map(),depots:[],journey:null,page:1,total:0,pageSize:30,opEdit:null,agEdit:null,documentEdit:null,documentHistoryId:null,documentHistoryPage:1,documentHistoryTotal:0,docPage:1,docTotal:0,operatorPage:1,operatorTotal:0,tlvPage:1,tlvTotal:0};
-function message(text,error=false){$('status').textContent=text;$('status').classList.toggle('error',error);$('status').hidden=false;}
+function message(text,error=false){notify(text,error);}
 async function api(path,method='GET',body,extra={}){
   if(!state.key)throw Error('请先输入密钥并连接');
-  const headers={'X-API-Key':state.key,...extra};
+  const headers={...extra};
   if(state.identity?.role==='admin'&&$('agencyContext').value)headers['X-Agency-Code']=$('agencyContext').value;
   if(state.identity?.role==='admin'&&path.startsWith('/operator/')&&$('operatorScope').value)headers['X-Operator-Code']=$('operatorScope').value;
   if(body!==undefined)headers['Content-Type']='application/json';
-  const response=await fetch('/api/v1'+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
-  const data=await response.json().catch(()=>({error:'服务器未返回 JSON'}));
+  const target='/api/v1'+path,rawBody=body===undefined?'':JSON.stringify(body);
+  const signed=await signRequest(state.key,method,target,rawBody,headers);
+  const response=await fetch(target,{method,headers:signed.headers,body:body===undefined?undefined:rawBody,redirect:'error'});
+  const bytes=new Uint8Array(await response.arrayBuffer());
+  verifyResponse(response,bytes,signed);
+  let data;try{data=JSON.parse(new TextDecoder().decode(bytes));}catch{throw Error('服务器未返回 JSON');}
   if(!response.ok)throw Error(`${response.status} · ${data.error||'请求失败'}`);
   return data;
 }
 function on(id,fn,event='click'){$(id).addEventListener(event,async e=>{e.preventDefault();const source=e.currentTarget;if(source.dataset.busy)return;source.dataset.busy='1';const button=event==='submit'?source.querySelector('button[type=submit]'):source;const disabled=button.disabled;button.disabled=true;try{await fn(e);}catch(err){message(err.message,true);}finally{source.dataset.busy='';button.disabled=disabled;if(id==='prev')button.disabled=state.page<=1;if(id==='next')button.disabled=state.page*state.pageSize>=state.total;if(id==='clearExecute')button.disabled=!cleanupPreview||cleanupPreview.blocked;if(id==='docPrev')button.disabled=state.docPage<=1;if(id==='docNext')button.disabled=state.docPage*30>=state.docTotal;if(id==='operatorPrev')button.disabled=state.operatorPage<=1;if(id==='operatorNext')button.disabled=state.operatorPage*30>=state.operatorTotal;if(id==='tlvPrev')button.disabled=state.tlvPage<=1;if(id==='tlvNext')button.disabled=state.tlvPage*30>=state.tlvTotal;if(id==='documentHistoryPrev')button.disabled=!state.documentHistoryId||state.documentHistoryPage<=1;if(id==='documentHistoryNext')button.disabled=!state.documentHistoryId||state.documentHistoryPage*30>=state.documentHistoryTotal;}});}
 function el(tag,text){const n=document.createElement(tag);if(text!==undefined)n.textContent=String(text);return n;}
-function action(label,fn,secondary=true){const b=el('button',label);if(secondary)b.className='secondary';b.onclick=async()=>{b.disabled=true;try{await fn();}catch(e){message(e.message,true);}finally{b.disabled=false;}};return b;}
-function table(target,head,rows){const t=el('table'),tr=el('tr'),thead=el('thead');head.forEach(h=>tr.append(el('th',h)));thead.append(tr);t.append(thead);const body=el('tbody');rows.forEach(cells=>{const r=el('tr');cells.forEach(c=>{const td=el('td');td.append(c instanceof Node?c:document.createTextNode(String(c??'')));r.append(td);});body.append(r);});if(!rows.length){const r=el('tr'),td=el('td','暂无数据');td.colSpan=head.length;r.append(td);body.append(r);}t.append(body);$(target).replaceChildren(t);}
-function choices(id,rows,value,label,placeholder){const old=$(id).value;$(id).replaceChildren();if(placeholder!==undefined)$(id).append(new Option(placeholder,''));rows.forEach(r=>$(id).append(new Option(label(r),String(value(r)))));if([...$(id).options].some(o=>o.value===old))$(id).value=old;}
+function action(label,fn,secondary=true){return createAction(label,fn,secondary);}
+function table(target,head,rows){renderTable($(target),head,rows);}
+function choices(id,rows,value,label,placeholder){const options=rows.map(r=>({label:label(r),value:String(value(r))}));if(placeholder!==undefined)options.unshift({label:placeholder,value:''});setChoices(id,options);}
 function station(id){const s=state.stations.get(id);return s?s.name.split('|')[0]:id;}
-function money(n,currency='CNY'){return `${(Number(n)/100).toFixed(2)} ${currency}`;}
+function money(n,currency='CNY'){if(n==null)return '待核价';return `${(Number(n)/100).toFixed(2)} ${currency}`;}
 function newKey(){ $('requestKey').value=globalThis.crypto?.randomUUID?.()||`test-${Date.now()}-${Math.random().toString(36).slice(2)}`; }
-function tab(name){document.querySelectorAll('.panel').forEach(p=>p.hidden=p.id!==name);document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));}
+function tab(name,navigate=true){
+ session.page=name;
+ if(navigate && router.currentRoute.value.path!=='/'+name)router.replace('/'+name);document.querySelectorAll('.panel').forEach(p=>p.hidden=p.id!==name);document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));}
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
+router.afterEach((to,from,failure)=>{if(!failure)tab(String(to.path.slice(1)),false);});
 async function connect(){
-  state.key=$('apiKey').value.trim();state.identity=null;
-  const result=await api('/me');state.identity=result.data;
+  state.key=$('apiKey').value.trim();state.identity=null;session.role='';session.connected=false;
+ $('manageTab').hidden=true;$('operatorTicketsTab').hidden=true;
+ clearPassengerUI();tab('sales');$('identity').textContent='正在验证身份…';
+  const result=await api('/me');state.identity=result.data;session.role=state.identity.role;session.connected=true;
   const admin=state.identity.role==='admin',operator=state.identity.role==='operator';
   $('identity').textContent=operator?`身份：运营方 · ${state.identity.operator_code} · ${state.identity.operator?.name||''}`:`身份：${admin?'管理员':'出票方'} · 当前出票方 ${state.identity.agency_code} · ${state.identity.agency?.name||'未配置'}`;
   $('manageTab').hidden=!admin;$('agencyContext').disabled=!admin;
@@ -38,7 +53,7 @@ async function connect(){
     tab('operatorTickets');await browseOperatorTickets();message('运营方连接成功');return;
   }
   if(!admin){
-    $('agencyContext').replaceChildren(new Option(state.identity.agency_code,''));
+    setChoices('agencyContext',[{label:state.identity.agency_code,value:''}]);
     if(!$('management').hidden||!$('operatorTickets').hidden)tab('sales');
   }
   const stations=(await api('/stations')).data;state.stations=new Map(stations.map(s=>[s.id,s]));
@@ -70,7 +85,7 @@ function depotInfo(){
  if(d.siding_count>1)box.append(el('p','多股道按名称、颜色顺序轮换生成计划班次，每个发车时刻只分配一次；实际发车股道取决于游戏内列车就绪情况。mapping 可用于指定股道。'));
  const details=el('details');details.append(el('summary','查看全部股道与发车配置'));
  const list=el('pre');list.textContent=d.sidings.map(s=>`${s.name} · 股道 ${s.siding_id} · ${s.path_segments} 段路径 · 车辆上限 ${s.unlimited_trains?'无限':s.vehicle_limit}（原始 max_trains=${s.max_trains}）${s.is_manual?' · 手动驾驶':''}`).join('\n')||'该车厂范围内没有保存的股道';details.append(list);
- details.append(el('pre',JSON.stringify({route_ids:d.route_ids,departures_ms:d.departures,frequencies:d.frequencies},null,2)));box.append(details);
+ details.append(el('pre',JSON.stringify({route_ids:d.route_ids,departures_ms:d.departures,frequencies:d.frequencies},null,2)));box.append(details);renderContent(box);
 }
 async function loadDepots(){
   const q=new URLSearchParams();if($('tripDate').value)q.set('date',$('tripDate').value);if($('tripOperator').value)q.set('operator',$('tripOperator').value);
@@ -85,43 +100,48 @@ async function browse(){
   depotInfo();
   const result=await api('/trips?'+q);state.total=result.total;state.pageSize=result.page_size;$('pageInfo').textContent=`共 ${result.total} 趟 · 第 ${result.page} 页 / ${Math.max(1,Math.ceil(result.total/result.page_size))} 页`;
   $('prev').disabled=state.page<=1;$('next').disabled=state.page*result.page_size>=result.total;
-  table('tripResults',['班次 ID / 名称','运营方','区间','发车（UTC）','操作'],result.data.map(t=>[tripCell(t),`${t.operator_name} (${t.operator_code})${t.operator_assignment==='depot'?' · 车厂归属':''}`,`${station(t.origin?.station_id)} → ${station(t.destination?.station_id)}`,t.origin?.departure_at,action('查看 / 选区间',()=>detail(t.id))]));
+  table('tripResults',['班次 ID / 名称','运营方','区间','发车（UTC）','里程','操作'],result.data.map(t=>[tripCell(t),`${t.operator_name} (${t.operator_code})${t.operator_assignment==='depot'?' · 车厂归属':''}`,`${station(t.origin?.station_id)} → ${station(t.destination?.station_id)}`,t.origin?.departure_at,mileage(t.destination?.distance_m==null||t.origin?.distance_m==null?null:t.destination.distance_m-t.origin.distance_m),action('查看 / 选区间',()=>detail(t.id))]));
 }
 async function detail(id){
   const t=(await api('/trips/'+id)).data;$('assignTripId').value=t.id;
   const box=$('tripDetail');box.hidden=false;box.replaceChildren(el('h3',`${t.train_number||'班次'} · ${tripLabel(t)} · 第 ${t.run_number} 趟 · ${t.name.split('|')[0]}（数据库 ID ${t.id}）${t.operator_assignment==='depot'?' · 车厂归属运营方 '+t.operator_code:''}`));
   if(t.duty)box.append(el('p',t.duty));
-  const a=el('select'),b=el('select');t.stops.forEach(s=>{a.append(new Option(`${s.seq} · ${station(s.station_id)}`,s.seq));b.append(new Option(`${s.seq} · ${station(s.station_id)}`,s.seq));});b.value=([...t.stops].reverse().find(s=>s.station_id!==t.stops[0].station_id)||t.stops.at(-1)).seq;
+  const options=t.stops.map(s=>({label:`${s.seq} · ${station(s.station_id)}`,value:String(s.seq)}));const a=createSelect('detailOrigin',options,String(t.stops[0].seq)),b=createSelect('detailDestination',options,String(([...t.stops].reverse().find(s=>s.station_id!==t.stops[0].station_id)||t.stops.at(-1)).seq));
   const row=el('div');row.className='row';const la=el('label','上车站'),lb=el('label','下车站');la.append(a);lb.append(b);row.append(la,lb,action('查询此区间',async()=>{const from=t.stops.find(s=>s.seq==a.value),to=t.stops.find(s=>s.seq==b.value);if(Number(a.value)>=Number(b.value))throw Error('下车站序必须大于上车站序');$('origin').value=from.station_id;$('destination').value=to.station_id;$('journeyDate').value=from.departure_at.slice(0,10);$('journeyTrainNumber').value=t.train_number||'';$('journeyTimeFrom').value='';$('journeyTimeTo').value='';await search();$('journeyResults').scrollIntoView({behavior:'smooth',block:'center'});}));box.append(row);
-  const list=el('pre');list.textContent=t.stops.map(s=>`${s.seq} · ${station(s.station_id)} · 到 ${s.arrival_at} / 发 ${s.departure_at}`).join('\n');box.append(list);
+  const list=el('pre');list.textContent=t.stops.map(s=>`${s.seq} · ${station(s.station_id)} · 到 ${s.arrival_at} / 发 ${s.departure_at} · ${mileage(s.distance_m)}`).join('\n');box.append(list);renderContent(box);
 }
 async function search(){state.journey=null;$('issue').disabled=true;$('selectedJourney').textContent='请从新查询结果选择车次。';const q=new URLSearchParams({origin:$('origin').value,destination:$('destination').value,date:$('journeyDate').value});for(const [key,id] of [['train_number','journeyTrainNumber'],['time_from','journeyTimeFrom'],['time_to','journeyTimeTo']])if($(id).value)q.set(key,$(id).value);const rows=(await api('/journeys?'+q)).data;
-  table('journeyResults',['班次','运营方','发车 → 到达（UTC）','余票','票价','操作'],rows.map(t=>{const b=action('选择出票',()=>{state.journey=t;newKey();$('selectedJourney').textContent=`${t.train_number||'班次'} · ${tripLabel(t)} · 数据库 ID ${t.id} · ${station($('origin').value)} → ${station($('destination').value)} · ${t.departure_at} → ${t.arrival_at} UTC · 站序 ${t.origin_seq}–${t.destination_seq} · ${money(t.amount_minor,t.currency)}`;$('issue').disabled=false;$('issueSection').scrollIntoView({behavior:'smooth'});});b.disabled=t.available<1;return [tripCell(t),t.operator_code+(t.operator_assignment==='depot'?' · 车厂归属':''),`${t.departure_at} → ${t.arrival_at}`,t.available,money(t.amount_minor,t.currency),b];}));message(`查到 ${rows.length} 个可选区间`);
+  table('journeyResults',['班次','运营方','发车 → 到达（UTC）','里程','余票','票价','操作'],rows.map(t=>{const b=action('选择出票',()=>{state.journey=t;newKey();$('selectedJourney').textContent=`${t.train_number||'班次'} · ${tripLabel(t)} · 数据库 ID ${t.id} · ${station($('origin').value)} → ${station($('destination').value)} · ${t.departure_at} → ${t.arrival_at} UTC · ${mileage(t.distance_m)} · 站序 ${t.origin_seq}–${t.destination_seq} · ${money(t.amount_minor,t.currency)}`;$('issue').disabled=false;$('issueSection').scrollIntoView({behavior:'smooth'});});b.disabled=t.available<1;return [tripCell(t),t.operator_code+(t.operator_assignment==='depot'?' · 车厂归属':''),`${t.departure_at} → ${t.arrival_at}`,mileage(t.distance_m),t.available,t.fare_available===false?'里程待补齐':money(t.amount_minor,t.currency),b];}));message(`查到 ${rows.length} 个可选区间`);
 }
-function renderTicket(target,t){const box=el('div');box.className='ticket';box.append(el('strong',t.ticket_number),el('p',`PNR ${t.pnr} · ${t.status==='OPEN'?'有效':'已退票'} · ${t.passenger} · ${money(t.amount_minor,t.currency)}`),el('p',`出票方 ${t.agency_code} · ${t.issued_at} UTC`));(t.coupons||[]).forEach(c=>box.append(el('p',`${c.trip.train_number||'班次'} · ${tripLabel(c.trip)} · 数据库 ID ${c.trip.id} · 运营方 ${c.trip.operator_code} · ${station(c.origin.station_id)} → ${station(c.destination.station_id)} · ${c.origin.departure_at} UTC`)));if(t.passenger_document_snapshot){const d=t.passenger_document_snapshot;box.append(el('p',`证件快照：${d.document_type} · ${d.document_number} · ${d.issuing_country} · ${d.display_name} · 出生 ${d.birth_date} · 版本 ${d.version}`));}const d=el('details');d.append(el('summary','原始响应'));d.append(el('pre',JSON.stringify(t,null,2)));box.append(d);$(target).replaceChildren(box);$('ticketNumber').value=t.ticket_number;}
+function renderTicket(target,t){const box=el('div');box.className='ticket';box.append(el('strong',t.ticket_number),el('p',`PNR ${t.pnr} · ${t.status==='OPEN'?'有效':'已退票'} · ${t.passenger} · ${money(t.amount_minor,t.currency)}`),el('p',`出票方 ${t.agency_code} · ${t.issued_at} UTC`));(t.coupons||[]).forEach(c=>box.append(el('p',`${c.trip.train_number||'班次'} · ${tripLabel(c.trip)} · 数据库 ID ${c.trip.id} · 运营方 ${c.trip.operator_code} · ${station(c.origin.station_id)} → ${station(c.destination.station_id)} · ${c.origin.departure_at} UTC`)));if(t.passenger_document_snapshot){const d=t.passenger_document_snapshot;box.append(el('p',`证件快照：${d.document_type} · ${d.document_number} · ${d.issuing_country} · ${d.display_name} · 出生 ${d.birth_date} · 版本 ${d.version}`));}if(t.fare_snapshot){const f=t.fare_snapshot;box.append(el('p',`按轨道里程计费 · ${mileage(f.distance_m)} · 单价版本 ${f.fare_version}`));}const d=el('details');d.append(el('summary','原始响应'));d.append(el('pre',JSON.stringify(t,null,2)));box.append(d);$(target).replaceChildren(box);renderContent($(target));$('ticketNumber').value=t.ticket_number;}
+let farePolicy=null;
+async function loadFareRates(){const result=await api('/admin/fare-rates');farePolicy=result.data;for(const rate of farePolicy.rates)$('fareRate'+rate.speed_kmh).value=String(rate.rate_minor_per_km);$('farePolicyInfo').textContent=`单价版本 ${farePolicy.version} · ${farePolicy.currency} · 新出票采用当前单价`;}
+on('reloadFareRates',loadFareRates);
+on('saveFareRates',async()=>{if(!farePolicy)throw Error('请先加载单价');const rates=farePolicy.rates.map(r=>({speed_kmh:r.speed_kmh,rate_minor_per_km:Number($('fareRate'+r.speed_kmh).value)}));await api('/admin/fare-rates','PUT',{version:farePolicy.version,rates});await loadFareRates();state.journey=null;$('issue').disabled=true;message('公里单价已保存，请重新查询票价');});
 async function management(){
+  await loadFareRates();
   const [ops,ags]=await Promise.all([api('/admin/operators'),api('/admin/agencies')]);state.operators=ops.data;state.agencies=ags.data;
   table('operatorsList',['代码 / 名称','状态 / 白名单','操作'],ops.data.map(o=>[`${o.code} · ${o.name}`,(o.active?'启用':'停用')+' · 白名单'+(Number(o.whitelist_enabled)?'开启':'关闭'),action('编辑',()=>{state.opEdit=o.code;$('opCode').value=o.code;$('opCode').disabled=true;$('opName').value=o.name;$('opContact').value=o.contact;$('opActive').value=o.active;$('opWhitelist').value=o.whitelist_enabled;})]));
   table('agenciesList',['代码 / 名称','票号前缀 / 状态','操作'],ags.data.map(a=>[`${a.code} · ${a.name}`,`${a.issuer_code} · ${a.active?'启用':'停用'}`,action('编辑',()=>{state.agEdit=a.code;$('agCode').value=a.code;$('agCode').disabled=true;$('agName').value=a.name;$('agIssuer').value=a.issuer_code;$('agIssuer').disabled=true;$('agContact').value=a.contact;$('agActive').value=a.active;})]));
   choices('agencyContext',ags.data,a=>a.code,a=>`${a.name} (${a.code}${a.active?'':' · 停用'})`,'默认出票方');choices('grantAgency',ags.data,a=>a.code,a=>`${a.name} (${a.code})`);choices('assignOperator',ops.data.filter(o=>o.active),o=>o.code,o=>`${o.name} (${o.code})`);choices('tripOperator',ops.data.filter(o=>o.active),o=>o.code,o=>`${o.name} (${o.code})`,'全部运营方');choices('operatorScope',ops.data,o=>o.code,o=>`${o.name} (${o.code})`);choices('depotOperator',ops.data.filter(o=>o.active),o=>o.code,o=>`${o.name} (${o.code})`);choices('whitelistOperator',ops.data,o=>o.code,o=>`${o.name} (${o.code})`);choices('whitelistAgency',ags.data,a=>a.code,a=>`${a.name} (${a.code})`);grants();await loadWhitelist();
 }
-function grants(){const a=state.agencies.find(a=>a.code===$('grantAgency').value);$('grantOperators').replaceChildren();state.operators.forEach(o=>{const l=el('label'),c=el('input');c.type='checkbox';c.value=o.code;c.checked=!!a?.operators.includes(o.code);l.append(c,document.createTextNode(`${o.name} (${o.code}${o.active?'':' · 停用'})`));$('grantOperators').append(l);});}
+function grants(){const agency=state.agencies.find(a=>a.code===$('grantAgency').value);grantChoices.options=state.operators.map(o=>({value:o.code,label:`${o.name} (${o.code}${o.active?'':' · 停用'})`}));grantChoices.value=agency?.operators.slice()||[];}
 function resetOp(){state.opEdit=null;$('operatorForm').reset();$('opCode').disabled=false;}
 function resetAg(){state.agEdit=null;$('agencyForm').reset();$('agCode').disabled=false;$('agIssuer').disabled=false;}
-on('connect',connect);on('disconnect',()=>{state.key='';state.identity=null;state.journey=null;$('apiKey').value='';$('identity').textContent='密钥已清除';$('manageTab').hidden=true;$('management').hidden=true;$('keyResult').hidden=true;$('keyResult').textContent='';$('issue').disabled=true;clearPassengerUI();tab('sales');message('连接身份已清除');});
+on('connect',connect);on('disconnect',()=>{state.key='';session.$reset();state.identity=null;state.journey=null;$('apiKey').value='';$('identity').textContent='密钥已清除';$('manageTab').hidden=true;$('management').hidden=true;$('keyResult').hidden=true;$('keyResult').textContent='';$('issue').disabled=true;clearPassengerUI();tab('sales');message('连接身份已清除');});
 $('agencyContext').onchange=async()=>{try{const r=await api('/me');state.identity=r.data;$('identity').textContent=`身份：管理员 · 当前出票方 ${state.identity.agency_code} · ${state.identity.agency?.name||'未配置'}`;state.journey=null;$('issue').disabled=true;$('selectedJourney').textContent='出票方已切换，请重新选择车次';$('issuedTicket').replaceChildren();$('ticketResult').replaceChildren();$('keyResult').hidden=true;}catch(e){message(e.message,true);}};
 on('search',search);on('swap',()=>{const a=$('origin').value;$('origin').value=$('destination').value;$('destination').value=a;});on('browse',async()=>{state.page=1;await loadDepots();await browse();});
 on('tripDepot',async()=>{state.page=1;await browse();},'change');
 on('tripDate',async()=>{state.page=1;await loadDepots();await browse();},'change');
 on('tripOperator',async()=>{state.page=1;await loadDepots();await browse();},'change');
 on('tripIdMode',browse,'change');on('prev',async()=>{state.page=Math.max(1,state.page-1);await browse();});on('next',async()=>{state.page++;await browse();});on('newKey',newKey);
-on('issue',async()=>{if(!state.journey)throw Error('先选择车次');const t=state.journey;const body={trip_id:Number(t.id),origin_seq:Number(t.origin_seq),destination_seq:Number(t.destination_seq)};const doc=$('issueDocumentId').value;if(doc){if(!/^[1-9][0-9]*$/.test(doc))throw Error('请输入有效证件库 ID');body.document_id=Number(doc);}else body.passenger=$('passenger').value;const result=await api('/tickets','POST',body,{'Idempotency-Key':$('requestKey').value});renderTicket('issuedTicket',result.data);message('出票成功。重复提交此请求键会返回同一张票。');});
-on('lookup',async()=>{const r=await api('/tickets/'+encodeURIComponent($('ticketNumber').value.trim()));renderTicket('ticketResult',r.data);message('客票已加载');});on('refund',async()=>{const n=$('ticketNumber').value.trim();if(!/^\d{13}$/.test(n))throw Error('请输入 13 位票号');if(!confirm(`确定退票 ${n}？`))return;const r=await api('/tickets/'+n+'/refund','POST',{});renderTicket('ticketResult',r.data);message('客票已退票，库存已释放');});
+on('issue',async()=>{if(!state.journey)throw Error('先选择车次');const t=state.journey;const body={trip_id:Number(t.id),origin_seq:Number(t.origin_seq),destination_seq:Number(t.destination_seq),fare_version:t.fare_version};const doc=$('issueDocumentId').value;if(doc){if(!/^[1-9][0-9]*$/.test(doc))throw Error('请输入有效证件库 ID');body.document_id=Number(doc);}else body.passenger=$('passenger').value;const result=await api('/tickets','POST',body,{'Idempotency-Key':$('requestKey').value});renderTicket('issuedTicket',result.data);message('出票成功。重复提交此请求键会返回同一张票。');});
+on('lookup',async()=>{const r=await api('/tickets/'+encodeURIComponent($('ticketNumber').value.trim()));renderTicket('ticketResult',r.data);message('客票已加载');});on('refund',async()=>{const n=$('ticketNumber').value.trim();if(!/^\d{13}$/.test(n))throw Error('请输入 13 位票号');if(!await confirmAction(`确定退票 ${n}？`))return;const r=await api('/tickets/'+n+'/refund','POST',{});renderTicket('ticketResult',r.data);message('客票已退票，库存已释放');});
 on('operatorForm',async()=>{const b={code:$('opCode').value.trim(),name:$('opName').value.trim(),contact:$('opContact').value.trim(),active:Number($('opActive').value),whitelist_enabled:Number($('opWhitelist').value)};await api('/admin/operators'+(state.opEdit?'/'+state.opEdit:''),state.opEdit?'PUT':'POST',b);resetOp();await management();message('运营方已保存');},'submit');
 on('agencyForm',async()=>{const b={code:$('agCode').value.trim(),name:$('agName').value.trim(),issuer_code:$('agIssuer').value,contact:$('agContact').value.trim(),active:Number($('agActive').value)};await api('/admin/agencies'+(state.agEdit?'/'+state.agEdit:''),state.agEdit?'PUT':'POST',b);resetAg();await management();message('出票方已保存');},'submit');
 on('resetOperator',resetOp);on('resetAgency',resetAg);$('grantAgency').onchange=grants;
-on('saveGrants',async()=>{const operators=[...$('grantOperators').querySelectorAll('input:checked')].map(c=>c.value);await api('/admin/agencies/'+$('grantAgency').value+'/operators','PUT',{operators});await management();message('白名单关联已保存；仅对白名单已开启的运营方生效');});
-on('rotateKey',async()=>{const code=$('grantAgency').value;if(!code)throw Error('请选择出票方');if(!confirm(`为 ${code} 重置密钥？旧密钥立即失效。`))return;const r=await api('/admin/agencies/'+code+'/key','POST',{});$('keyResult').textContent=`${code} 的新密钥（仅本次显示，请复制保存）：\n${r.data.api_key}`;$('keyResult').hidden=false;await management();message('出票方密钥已生成');});
+on('saveGrants',async()=>{const operators=grantChoices.value.slice();await api('/admin/agencies/'+$('grantAgency').value+'/operators','PUT',{operators});await management();message('白名单关联已保存；仅对白名单已开启的运营方生效');});
+on('rotateKey',async()=>{const code=$('grantAgency').value;if(!code)throw Error('请选择出票方');if(!await confirmAction(`为 ${code} 重置密钥？旧密钥立即失效。`))return;const r=await api('/admin/agencies/'+code+'/key','POST',{});$('keyResult').textContent=`${code} 的新密钥（仅本次显示，请复制保存）：\n${r.data.api_key}`;$('keyResult').hidden=false;await management();message('出票方密钥已生成');});
 on('assign',async()=>{const id=$('assignTripId').value;if(!/^[1-9]\d*$/.test(id))throw Error('请输入有效班次 ID');await api('/admin/trips/'+id+'/operator','PUT',{operator_code:$('assignOperator').value});await browse();message('班次运营方已更新');});
 
 
@@ -148,7 +168,7 @@ on('clearPreview',async()=>{
 on('clearExecute',async()=>{
   if(!cleanupPreview||cleanupPreview.date!==$('clearDate').value||cleanupPreview.scope!==$('clearScope').value)throw Error('请先重新预览范围');
   if($('clearConfirm').value!==cleanupPreview.date)throw Error('请输入与运营日相同的日期以确认删除');
-  if(!confirm('永久清空 '+cleanupPreview.date+' 的所选数据？此操作无法撤销。'))return;
+  if(!await confirmAction('永久清空 '+cleanupPreview.date+' 的所选数据？此操作无法撤销。'))return;
   const r=await api('/admin/clear-date','POST',{date:cleanupPreview.date,scope:cleanupPreview.scope,preview:false,confirm_date:$('clearConfirm').value});
   state.journey=null;$('issue').disabled=true;$('tripDetail').hidden=true;$('selectedJourney').textContent='数据已清空，请重新选择车次';
   for(const id of ['journeyResults','issuedTicket','ticketResult'])$(id).replaceChildren();
@@ -170,7 +190,7 @@ on('saveDepotOperator',async()=>{
  if(!$('assignDepot').value)throw Error('请选择车厂');
  const [dimension,depot_id]=JSON.parse($('assignDepot').value),operator_code=$('depotOperator').value;
  if(!operator_code)throw Error('请选择运营方');
- if(!confirm('将该车厂所有线路、班次及后续导入划给 '+operator_code+'？'))return;
+ if(!await confirmAction('将该车厂所有线路、班次及后续导入划给 '+operator_code+'？'))return;
  const r=await api('/admin/depots/operator','PUT',{dimension,depot_id,operator_code});
  state.journey=null;$('issue').disabled=true;$('tripDetail').hidden=true;state.page=1;await loadDepots();await browse();
  message('车厂归属已保存，更新 '+r.data.updated_trips+' 个班次');
@@ -272,7 +292,7 @@ async function loadTicketTlv(){
    const log=await api('/operator/tickets/'+number+'/tlv/'+v.id+'/history');$('tlvHistory').textContent=JSON.stringify(log.data,null,2);
   }));
   if(v.active)actions.append(action('撤销',async()=>{
-   const reason=prompt('撤销此 TLV 的原因（保留记录与日志）');if(!reason)return;
+   const reason=await requestReason('撤销此 TLV 的原因（保留记录与日志）');if(!reason)return;
    await api('/operator/tickets/'+number+'/tlv/'+v.id,'DELETE',{reason});await loadTicketTlv();message('附加信息已撤销，日志保留');
   }));
   const value=el('pre',v.value.length>200?v.value.slice(0,200)+'…':v.value);
@@ -307,7 +327,7 @@ on('tlvExport',async()=>{
 });
 on('rotateOperatorKey',async()=>{
  const code=$('whitelistOperator').value;if(!code)throw Error('请选择运营方');
- if(!confirm('为 '+code+' 重置运营方密钥？旧密钥立即失效。'))return;
+ if(!await confirmAction('为 '+code+' 重置运营方密钥？旧密钥立即失效。'))return;
  const r=await api('/admin/operators/'+encodeURIComponent(code)+'/key','POST',{});
  $('operatorKeyResult').textContent=code+' 的运营方密钥（仅本次显示，请复制保存）：\n'+r.data.api_key;$('operatorKeyResult').hidden=false;
  message('运营方密钥已生成，仅能管理本运营方承运客票的附加信息');
@@ -324,3 +344,6 @@ async function loadDocumentHistory(){
 on('documentHistoryPrev',async()=>{state.documentHistoryPage=Math.max(1,state.documentHistoryPage-1);await loadDocumentHistory();});
 on('documentHistoryNext',async()=>{state.documentHistoryPage++;await loadDocumentHistory();});
 
+
+ tab(session.page);
+}

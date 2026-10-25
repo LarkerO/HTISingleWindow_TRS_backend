@@ -2,29 +2,30 @@
 
 # MTR 电子客票后端
 
-ThinkPHP 8.1 / PHP 8.4 / MariaDB，附带无构建依赖的 HTML 测试工作台。
+ThinkPHP 8.1 / PHP 8.4 / MariaDB，附带基于 TDesign Starter Vue Next 的 Vue 3 工作台。本仓库对应本地工作区的 `backend/` 子目录；`world/` 存档和 MTR 模组源码属于外部输入，不随本仓库发布。
 
 ## 已完成
 
 - 从单个维度目录或 ZIP 读取 MTR 3.x MessagePack：车站、站台、线路、车库、存车线及运行路径。64 位 ID 用字符串输出，避免 JavaScript 精度丢失。
-- 根据 `Siding.generateTimeSegments` 的轨道长度、限速、加减速、停站和折返重建离线图定时间；保存按运营日展开的列车与逐站时刻。
+- 根据 `Train.simulateTrain` 的轨道长度、限速、加减速、停站和折返估算离线自由运行时间；保存按运营日展开的列车与逐站时刻。
 - 按车站区间查询车次；电子客票（13 位票号）、PNR、乘车联、出票机构、承运方、票价及审计记录。
 - 出票幂等、区间库存复用、事务锁防超售、退票幂等和库存归还。
 - 私有接口鉴权，禁止直接控制器访问。密码及 API key 在 `.env`，不在文档中展示。
 
-这是借鉴电子机票模型的项目内部协议，未宣称通过 IATA 认证或接入航空清算。当前支持一张票一名旅客一个乘车联、多个独立出票机构；金额以最小货币单位整数保存。未接入付款，出票与退票是客票凭证和库存操作，未发生真实扣款或退款。
+这是借鉴电子机票模型的项目内部协议，未宣称通过 IATA 认证或接入航空清算。当前支持一张票一名旅客一个乘车联、多个独立出票机构；金额以最小货币单位整数保存，新报价按轨道限速分档的实际里程计费。未接入付款，出票与退票是客票凭证和库存操作，未发生真实扣款或退款。
 
 ## 启动
 
 ```bash
+# 在本仓库目录执行
 composer install
 php think ticketing:schema
 php think run --host 127.0.0.1 --port 8000
 ```
 
-MariaDB 连接已写入本地 `.env`。数据库应预先存在，建表命令只使用 `CREATE TABLE IF NOT EXISTS`。不要向已有同名业务表的数据库执行本项目建表命令。
+MariaDB 连接已写入本地 `.env`。数据库应预先存在，迁移使用可重复执行的建表与增列语句，请先备份已有数据库。不要向已有同名业务表的数据库执行本项目建表命令。
 
-在 `.env` 查看 `TICKETING_API_KEY`，请求头传 `X-API-Key`。所有日期、时刻使用 UTC（MTR 源码用系统 epoch 毫秒模 86400000），北京时间为 UTC+8。`date` 查询参数指上车站发车的 UTC 日期，跨午夜不丢失。
+在 `.env` 查看 `TICKETING_API_KEY`，所有业务请求必须按 [HMAC-SM3 双向认证协议](docs/sm3-auth.md) 签名，旧的仅传 `X-API-Key` 方式已关闭。所有日期、时刻使用 UTC（MTR 源码用系统 epoch 毫秒模 86400000），北京时间为 UTC+8。`date` 查询参数指上车站发车的 UTC 日期，跨午夜不丢失。
 
 ## 导入
 
@@ -33,28 +34,28 @@ MariaDB 连接已写入本地 `.env`。数据库应预先存在，建表命令�
 php think mtr:import ../world/mtr/minecraft/overworld.zip \
   --dimension=minecraft/overworld --date=2026-10-04 --dry-run
 
-# 明确给出本运营日的容量及每相邻站区间票价（分）
+# 设置本运营日容量；各限速档公里单价在后台维护
 php think mtr:import ../world/mtr/minecraft/overworld.zip \
   --dimension=minecraft/overworld --date=2026-10-04 \
-  --operator=LOCAL --capacity=100 --fare=100
+  --operator=LOCAL --capacity=100
 ```
 
-容量 100、每区间 100 分仅为演示配置，不来自 MTR 存档。默认不传容量时容量为 0（不可出票），默认票价 0。每个运营日显式导入；不自动将线路名称当作商业车次号。
+已导入 2026-10-04 演示运营日：242 个当前车站、2,971 个可重建班次，容量 100 是演示配置；新票使用后台公里费率，不来自 MTR 存档。默认不传容量时容量为 0（不可出票），旧 `--fare` 参数保留兼容导入，不再参与新票计价。每个运营日显式导入；不自动将线路名称当作商业车次号。
 
-同一维度同一运营日可重新导入未出票的时刻表；一旦有客票记录（包括已退票），命令拒绝替换，避免旧票和新版本同时占用同一物理列车。旧版本保留供审计。导入使用 MariaDB 命名锁及列车行锁，整批写入事务；空结果不覆盖已有时刻表。
+同一维度同一运营日可重新导入未出票的时刻表；一旦有客票记录（包括已退票），导入命令拒绝替换，避免旧票和新版本同时占用同一物理列车。旧版本保留供审计。导入使用 MariaDB 命名锁及列车行锁，整批写入事务；空结果不覆盖已有时刻表。
 
 诊断在 `runtime/import-report.json`，每个入库批次也保存在 `imports.report`。导入允许部分成功，必须查看 warnings；当前并非所有车库均可直接售票。
 
 ### 离线数据的边界
 
-ZIP 原样读取，不解压或修改原存档。MTR 文件写入没有 truncate，可能遗留旧尾字节；读取与 Java 一样只消费首个完整 map。
+主世界文件可读出 235 个车站、637 个站台、371 条线路、139 个车库、177 条存车线。ZIP 原样读取，不解压或修改原存档。MTR 文件写入没有 truncate，可能遗留旧尾字节；读取与 Java 一样只消费首个完整 map。
 
 - 实时时刻表：使用车库 `departures` 毫秒表，0 点是 UTC。
 - 游戏时间频率：需要 `--world-tick`，含义是该运营日 UTC 0 点的 Minecraft dayTime。以此生成固定相位的计划，不是还原历史实际发车；仅有剥离的 mtr 目录无法确定 Minecraft 时钟和上次实际发车相位。
 - 多条可用存车线：真实 MTR 会根据 deployIndex 和车辆是否可用分配，因此离线快照不能保证逐趟物理车辆。使用 `--mapping=路径.json` 显式选定计划存车线，格式 `{"车库ID":"存车线ID"}`；这是计划模板选择。
 - 无限循环、手动驾驶、非 TRAIN 模式、缺失已生成路径、站台无车站或重叠车站归属：目前跳过并给出诊断，不凭空生成可售班次。
 - 轨道几何及运动按根目录提供的 3.x 源码计算。存档含部分附加模组字段；附加速度规则、信号等待、服务器卡顿、运行中的车辆可用状态及实时晚点不属于当前离线图定算法。
-- 座席/容量、运价、承运方和商业车次号不能从基础存档可靠推导。当前导入参数控制容量、票价、承运方；运营方需先在管理页面创建并启用；后续可扩展每车次运价、座席和正式车次号。
+- 座席/容量、运价、承运方和商业车次号不能从基础存档可靠推导。当前导入参数控制容量与承运方，公里单价由后台费率表管理；运营方需先在管理页面创建并启用；后续可扩展每车次运价、座席和正式车次号。
 
 ## 外部接口对接文档
 
@@ -78,9 +79,9 @@ ZIP 原样读取，不解压或修改原存档。MTR 文件写入没有 truncate
 {"trip_id":123,"origin_seq":0,"destination_seq":3,"passenger":"旅客名称"}
 ```
 
-`trip_id` 和站序均为 JSON 整数。站序从 0 开始，用车次查询返回的 origin_seq/destination_seq，支持同一站重复经过的明确区间。票价由后端计算，不接受客户端改价。一次请求出票一人。相同机构及 Idempotency-Key 重试返回同一客票；换内容复用同一键返回 409。接口查询余票为即时快照，出票时以事务内库存检查为准。
+`trip_id` 和站序均为 JSON 整数。站序从 0 开始，用车次查询返回的 origin_seq/destination_seq，支持同一站重复经过的明确区间。票价由后端按各限速档里程与公里单价计算，不接受客户端改价；可提交查询结果的 `fare_version` 检查改价。一次请求出票一人。相同机构及 Idempotency-Key 重试返回同一客票；换内容复用同一键返回 409。接口查询余票为即时快照，出票时以事务内库存检查为准。
 
-空 API key 返回 503、错误 key 返回 401、非法参数 422、库存/状态冲突 409、票不存在 404。出票机构由独立 API key 绑定，不能通过请求冒用其他机构。管理员可用 X-Agency-Code 指定代操作出票方。当前退票拒绝已发车客票。
+缺失、过期或错误签名返回 401，重复 nonce 返回 409、非法参数 422、库存/状态冲突 409、票不存在 404。出票机构由独立 API key 绑定，不能通过请求冒用其他机构。管理员可用 X-Agency-Code 指定代操作出票方。当前退票拒绝已发车客票。
 
 ## 验证
 
@@ -95,9 +96,11 @@ php tests/management.php
 
 并发测试创建专用测试班次，启动八个独立 PHP 进程争抢一个库存，验证仅一张票成功并在结束后清理测试记录。
 
-## HTML 测试工作台与机构管理
+## TDesign Starter Vue Next 测试工作台与机构管理
 
-启动后打开 http://localhost:8000/test.html（根路径也会跳转到工作台）。无需 npm 构建。页面与 API 必须同源，不要直接双击 HTML 用 file:// 打开。
+启动后打开 http://localhost:8000/test.html（根路径也会跳转到工作台）。已构建的静态资源位于 public/workbench，后端部署可直接使用。前台源码、启动与构建说明见 [frontend/README.md](frontend/README.md)。
+
+开发前台：在 frontend/ 执行 npm ci 和 npm run dev，打开 http://127.0.0.1:3002；API 代理至 8000 端口。修改完成后执行 npm run build，会先检查 TypeScript，再同步生成 /test.html 和 /workbench/index.html。前台使用 Hash 路由，刷新无需后端增加页面路由。密钥仅存于当前页面内存，角色菜单来自 /api/v1/me；保留查询、出票、退票、证件库、TLV、机构管理和按日清理。支持折叠侧栏与明暗主题。
 
 1. 输入 `.env` 的 `TICKETING_API_KEY` 并连接。此密钥现在是管理员密钥，原有调用仍兼容，默认代操作配置的 LOCAL 出票方。
 2. 查询与出票：加载车站列表（含保留的历史车站），浏览班次 / 逐站时刻，在已存在的班次上选择站区间再查询和出票。日期默认演示运营日 2026-10-04；当前显示 UTC。
@@ -111,7 +114,7 @@ php tests/management.php
 
 停用运营方会阻止其新票销售并从普通查询隐藏班次；停用出票方会阻止其密钥访问。撤销销售授权仅阻止新出票，原有票的查票和退票仍可用。管理员可代操作停用机构的既有客票，但新出票仍检查机构启用状态。幂等重试原出票请求可以返回已有客票。
 
-管理 API 使用原管理员 `X-API-Key`：
+管理 API 使用原管理员签名身份：
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -324,3 +327,41 @@ node tests/frontend-passengers.cjs
 测试覆盖证件唯一性、可忽略姓、服务端时间、并发版本、前后值日志、出票快照和幂等、UTF-8／二进制 TLV、重复标签、运营方隔离、密钥轮换、撤销日志及日清理。数据库服务测试写入回滚；HTTP 与浏览器使用专用临时证件／机构／客票并自动清理。
 
 
+
+## 运行时间与里程
+
+运行时间按随附 MTR 3.x 的 `Train.simulateTrain` 自由运行模型以 20 tick/s 估算，读取路径轨道类型对应限速（km/h ÷ 3.6 ÷ 20）、存车线 `acceleration_constant`（m/tick²），采用剩余距离制动、站台继承前段限速、停车速度归零与折返位置跳转。加速度先保留三位小数，非正值回退到 0.01。信号等待、服务器卡顿、附加模组改写行为仍不在离线模型内。
+
+`stops.distance_m` 为从该方向班次首站起累计的实际行驶距离（1 方块按 1 米）；折返时车长导致的位置跳转不计入里程。查询区间返回 `distance_m`，工作台班次、逐站详情和区间结果显示 km。旧记录没有可靠里程时返回 null，界面显示“里程待导入”。
+
+升级先执行 `php think ticketing:schema`，再按原参数重新导入未出票运营日（可使用 `--merge` 保留匹配班次 ID）。已有客票的日期保持原时刻表，仍拒绝覆盖。验证：`php tests/motion.php`、`php tests/routes.php`。
+
+已出票日期可仅回填里程，保持时刻及客票不变：`php think mtr:mileage ../world/mtr/minecraft/overworld --dimension=minecraft/overworld --date=2026-10-04`。命令要求存档哈希、班次键和逐站站台一致，不匹配则跳过并报告，避免用新地图覆盖历史行程。
+
+## 双向签名与请求统计
+
+所有 `/api/v1/*` 请求强制 HMAC-SM3 签名，绑定方法、原始路径与查询串、请求体、代操作身份及幂等键；时间戳有效期 ±300 秒，随机 nonce 用共享数据库唯一键防重放。响应同样签名，前端先验签再使用数据。现有 API key 继续可用，网络请求不发送原密钥。
+
+指标返回于 `meta.request` 与响应头，包含 request ID、毫秒耗时、PHP 内存增量及峰值；逐请求日志位于 `runtime/requests/`，不记录密钥、请求体或查询参数值。计量范围、错误响应和 OTA 示例见 [SM3 对接文档](docs/sm3-auth.md) 与 [PHP 示例](examples/signed-request.php)。
+
+## 按限速里程计费
+
+新票按各轨道标称限速档的区间里程乘对应公里单价核价，合计后四舍五入到分。后台“轨道公里单价”可修改完整费率表，速度越高单价必须越高；接口为 `GET/PUT /api/v1/admin/fare-rates`。初始化值是演示费率，运营前请调整。旧 `fare_per_segment` 不再参与新报价。
+
+查询返回价格版本与各档计费明细，出票保存 `fare_snapshot`。改价不影响原票和幂等重试；查询版本失效时前端要求重新查询。缺少可靠分档里程时拒绝新出票。详见 [里程计费与升级说明](docs/mileage-fares.md)。
+
+## 本次升级与验证
+
+```bash
+php think ticketing:schema
+# 对已有运营日，仅回填里程与限速分档，不改时刻或已出票金额
+php think mtr:mileage /path/to/original/dimension --dimension=minecraft/overworld --date=2026-10-04
+php tests/sm3.php
+node tests/sm3-client.mjs
+php tests/fares.php
+php tests/management.php
+php tests/passenger-http.php
+php tests/concurrency.php
+```
+
+前端修改后在 `frontend/` 执行 `npm ci && npm run build`；已发布静态资源随本仓库提交。PHP 需要 OpenSSL 提供 SM3（可用 `openssl_digest('abc','sm3')` 检查），数据库为 MariaDB。存档相关测试要求本仓库旁有 `../world/mtr/minecraft/overworld` 和对应 ZIP，测试输入不随 GitHub 发布。浏览器测试需要已启动后端及 Playwright/Edge，可用环境变量指定工作台 URL 和浏览器通道。

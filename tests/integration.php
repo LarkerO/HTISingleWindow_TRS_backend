@@ -17,6 +17,8 @@ try {
     check(count($stops)>=2,'Passenger stops persisted');
     for($i=1;$i<count($stops);$i++) check($stops[$i]['arrival_at']>=$stops[$i-1]['departure_at'],'Stop times monotonic '.$i);
     Db::table('trips')->where('id',$trip['id'])->update(['capacity'=>1]); $trip['capacity']=1;
+    // Isolate time-sensitive issuance from the historical sample operating day.
+    foreach($stops as $seq=>&$stop){$base=(new DateTimeImmutable('2099-01-01 10:00:00'))->modify('+'.($seq*5).' minutes');$stop['arrival_at']=$base->format('Y-m-d H:i:s');$stop['departure_at']=$base->modify('+30 seconds')->format('Y-m-d H:i:s');Db::table('stops')->where('trip_id',$trip['id'])->where('seq',$seq)->update(['arrival_at'=>$stop['arrival_at'],'departure_at'=>$stop['departure_at']]);}unset($stop);
     $service=new Ticketing(); $body=['trip_id'=>(int)$trip['id'],'origin_seq'=>0,'destination_seq'=>1,'passenger'=>'Integration Test'];
     $key='test-'.bin2hex(random_bytes(8)); $agency='TEST';
     Db::table('agencies')->insert(['code'=>'TEST','name'=>'Test agency','issuer_code'=>'998']);
