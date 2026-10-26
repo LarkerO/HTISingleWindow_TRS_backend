@@ -90,6 +90,8 @@ export function initializeWorkbench() {
       } finally {
         source.dataset.busy = '';
         button.disabled = disabled;
+        if (id === 'dictPrev') button.disabled = dictionaryPage <= 1;
+        if (id === 'dictNext') button.disabled = dictionaryPage * 500 >= dictionaryTotal;
         if (id === 'prev') button.disabled = state.page <= 1;
         if (id === 'next') button.disabled = state.page * state.pageSize >= state.total;
         if (id === 'clearExecute') button.disabled = !cleanupPreview || cleanupPreview.blocked;
@@ -123,7 +125,7 @@ export function initializeWorkbench() {
   }
   function station(id) {
     const s = state.stations.get(id);
-    return s ? s.name.split('|')[0] : id;
+    return s ? `${s.name} (${s.telegraph_code})` : id;
   }
   function money(n, currency = 'CNY') {
     if (n == null) return '待核价';
@@ -192,20 +194,25 @@ export function initializeWorkbench() {
       setChoices('agencyContext', [{ label: state.identity.agency_code, value: '' }]);
       if (!$('management').hidden || !$('operatorTickets').hidden) tab('sales');
     }
-    const stations = (await api('/stations')).data;
+    const stations = [];
+    for (let page = 1; ; page++) {
+      const r = await api('/stations?page=' + page);
+      stations.push(...r.data);
+      if (stations.length >= r.total) break;
+    }
     state.stations = new Map(stations.map((s) => [s.id, s]));
     choices(
       'origin',
       stations,
       (s) => s.id,
-      (s) => `${s.name.split('|')[0]} · ${s.dimension}`,
+      (s) => `${s.telegraph_code} · ${s.name} · ${s.name_en} · ${s.dimension}`,
       '请选择出发站',
     );
     choices(
       'destination',
       stations,
       (s) => s.id,
-      (s) => `${s.name.split('|')[0]} · ${s.dimension}`,
+      (s) => `${s.telegraph_code} · ${s.name} · ${s.name_en} · ${s.dimension}`,
       '请选择到达站',
     );
     if (admin) await management();
@@ -389,13 +396,15 @@ export function initializeWorkbench() {
       ),
     );
     if (t.duty) box.append(el('p', t.duty));
-    const options = t.stops.map((s) => ({ label: `${s.seq} · ${station(s.station_id)}`, value: String(s.seq) }));
-    const a = createSelect('detailOrigin', options, String(t.stops[0].seq)),
-      b = createSelect(
-        'detailDestination',
-        options,
-        String(([...t.stops].reverse().find((s) => s.station_id !== t.stops[0].station_id) || t.stops.at(-1)).seq),
-      );
+    const options = t.stops
+      .filter((s) => s.station?.visible)
+      .map((s) => ({ label: `${s.seq} · ${station(s.station_id)}`, value: String(s.seq) }));
+    if (options.length < 2) {
+      box.append(el('p', '该班次不足两个可见车站，请先配置车站字典'));
+      return;
+    }
+    const a = createSelect('detailOrigin', options, options[0].value),
+      b = createSelect('detailDestination', options, options.at(-1).value);
     const row = el('div');
     row.className = 'row';
     const la = el('label', '上车站'),
@@ -532,11 +541,94 @@ export function initializeWorkbench() {
     $('issue').disabled = true;
     message('公里单价已保存，请重新查询票价');
   });
+  let dictionaryPage = 1,
+    dictionaryTotal = 0;
+  async function loadDictionary() {
+    const r = await api('/admin/stations?' + new URLSearchParams({ q: $('dictSearch').value, page: dictionaryPage }));
+    dictionaryTotal = r.total;
+    $('dictPageInfo').textContent = `共 ${r.total} 站 · 第 ${r.page} 页`;
+    $('dictPrev').disabled = dictionaryPage <= 1;
+    $('dictNext').disabled = dictionaryPage * 500 >= r.total;
+    choices(
+      'dictOperator',
+      state.operators,
+      (o) => o.code,
+      (o) => `${o.name} (${o.code})`,
+      '请选择运营企业',
+    );
+    table(
+      'dictionaryList',
+      ['MTR 车站', '电报码 / 中文名 / 英文名', '归属企业 / 行政区', '可见性', '操作'],
+      r.data.map((s) => [
+        `${s.source_name} · ${s.id}`,
+        `${s.telegraph_code || '未配置'} · ${s.name_zh || ''} · ${s.name_en || ''}`,
+        `${s.operator_code || ''} · ${s.admin_level_1 || ''} / ${s.admin_level_2 || ''}`,
+        s.visible ? '可见' : '不可见',
+        action('编辑', () => {
+          for (const [id, key] of Object.entries({
+            dictId: 'id',
+            dictOperator: 'operator_code',
+            dictCode: 'telegraph_code',
+            dictZh: 'name_zh',
+            dictEn: 'name_en',
+            dictLevel1: 'admin_level_1',
+            dictLevel2: 'admin_level_2',
+          }))
+            $('' + id).value = s[key] || '';
+          $('dictVisible').value = s.visible ? '1' : '0';
+        }),
+      ]),
+    );
+  }
+  on('dictLoad', async () => {
+    dictionaryPage = 1;
+    await loadDictionary();
+  });
+  on('dictPrev', async () => {
+    dictionaryPage = Math.max(1, dictionaryPage - 1);
+    await loadDictionary();
+  });
+  on('dictNext', async () => {
+    dictionaryPage++;
+    await loadDictionary();
+  });
+  on('dictSave', async () => {
+    await api('/admin/stations', 'PUT', {
+      station_id: $('dictId').value,
+      visible: $('dictVisible').value === '1',
+      operator_code: $('dictOperator').value,
+      telegraph_code: $('dictCode').value,
+      name_zh: $('dictZh').value,
+      name_en: $('dictEn').value,
+      admin_level_1: $('dictLevel1').value,
+      admin_level_2: $('dictLevel2').value,
+    });
+    state.journey = null;
+    $('issue').disabled = true;
+    await loadDictionary();
+    const stations = [];
+    for (let page = 1; ; page++) {
+      const r = await api('/stations?page=' + page);
+      stations.push(...r.data);
+      if (stations.length >= r.total) break;
+    }
+    state.stations = new Map(stations.map((s) => [s.id, s]));
+    for (const id of ['origin', 'destination'])
+      choices(
+        id,
+        stations,
+        (s) => s.id,
+        (s) => `${s.telegraph_code} · ${s.name} · ${s.name_en}`,
+        '请选择车站',
+      );
+    message('车站字典已保存，请重新查询区间');
+  });
   async function management() {
     await loadFareRates();
     const [ops, ags] = await Promise.all([api('/admin/operators'), api('/admin/agencies')]);
     state.operators = ops.data;
     state.agencies = ags.data;
+    await loadDictionary();
     table(
       'operatorsList',
       ['代码 / 名称', '状态 / 白名单', '操作'],

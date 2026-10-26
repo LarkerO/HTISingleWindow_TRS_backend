@@ -70,7 +70,29 @@ try {
     $source['capacity'] = 10;
     $trip = (int) Db::table('trips')->insertGetId($source);
     $template = Db::table('stops')->where('trip_id', '<>', $trip)->order('trip_id,seq')->limit(2)->select()->toArray();
+    $codes = [];
+    for ($i = 17575; $i >= 0 && count($codes) < 2; $i--) {
+        $code = chr(65 + intdiv($i, 676)) . chr(65 + intdiv($i % 676, 26)) . chr(65 + ($i % 26));
+        if (!Db::table('station_dictionary')->where('telegraph_code', $code)->find()) {
+            $codes[] = $code;
+        }
+    }
     foreach ($template as $seq => $stop) {
+        $station = Db::table('stations')->where('id', $stop['station_id'])->find();
+        $station['id'] = $source['dimension'] . ':' . $seq;
+        $station['dimension'] = $source['dimension'];
+        Db::table('stations')->insert($station);
+        $stop['station_id'] = $station['id'];
+        app\service\StationDictionary::save([
+            'station_id' => $station['id'],
+            'visible' => true,
+            'operator_code' => $source['operator_code'],
+            'telegraph_code' => $codes[$seq],
+            'name_zh' => '计价测试站' . $seq,
+            'name_en' => 'Fare fixture ' . $seq,
+            'admin_level_1' => '',
+            'admin_level_2' => '',
+        ]);
         $stop['trip_id'] = $trip;
         $stop['seq'] = $seq;
         $stop['arrival_at'] = '2099-06-01 10:0' . $seq . ':00';
@@ -79,6 +101,22 @@ try {
         $stop['speed_distances_m'] = $seq ? '{"40":1000,"80":500}' : '{}';
         Db::table('stops')->insert($stop);
     }
+    // Missing fare metadata must not erase physical inventory.
+    $fixtureStops = Db::table('stops')->where('trip_id', $trip)->order('seq')->select()->toArray();
+    Db::table('stops')
+        ->where('trip_id', $trip)
+        ->where('seq', 1)
+        ->update(['speed_distances_m' => null]);
+    $journeys = (new Ticketing())->search($fixtureStops[0]['station_id'], $fixtureStops[1]['station_id'], '2099-06-01');
+    $matched = array_values(array_filter($journeys, fn($row) => (int) $row['id'] === $trip));
+    fareCheck(
+        count($matched) === 1 && $matched[0]['available'] === 10 && $matched[0]['fare_available'] === false,
+        'Missing mileage preserves inventory while disabling fare quotation',
+    );
+    Db::table('stops')
+        ->where('trip_id', $trip)
+        ->where('seq', 1)
+        ->update(['speed_distances_m' => $fixtureStops[1]['speed_distances_m']]);
     $used = Db::table('agencies')->column('issuer_code');
     $prefix = null;
     for ($i = 100; $i < 999; $i++) {

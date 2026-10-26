@@ -140,14 +140,14 @@ final class Api
     }
     public function stations(Request $r)
     {
-        $q = Db::table('stations')->order('name')->limit(500);
-        if ($r->get('q')) {
-            $q->whereLike('name', '%' . mb_substr((string) $r->get('q'), 0, 100) . '%');
-        }
-        if ($r->get('dimension')) {
-            $q->where('dimension', $r->get('dimension'));
-        }
-        return json(['data' => $q->select(), 'limit' => 500]);
+        return json(
+            \app\service\StationDictionary::listing(
+                false,
+                (string) $r->get('q', ''),
+                (string) $r->get('dimension', ''),
+                (int) $r->get('page', 1),
+            ),
+        );
     }
     public function journeys(Request $r)
     {
@@ -178,7 +178,10 @@ final class Api
             throw new HttpException(404, 'Trip not found');
         }
         $t = \app\service\TripIdentity::present($t);
-        $t['stops'] = Db::table('stops')->where('trip_id', $id)->order('seq')->select();
+        $t['stops'] = array_map(
+            [\app\service\StationDictionary::class, 'decorate'],
+            Db::table('stops')->where('trip_id', $id)->order('seq')->select()->toArray(),
+        );
         return json(['data' => $t, 'timezone' => 'UTC']);
     }
     public function issue(Request $r)

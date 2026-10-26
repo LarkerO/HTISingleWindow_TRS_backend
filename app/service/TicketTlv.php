@@ -85,6 +85,10 @@ final class TicketTlv
                 ->where('seq', $coupon['destination_seq'])
                 ->find();
         }
+        foreach ($ticket['coupons'] as &$c) {
+            $c['origin'] = StationDictionary::decorate($c['origin']);
+            $c['destination'] = StationDictionary::decorate($c['destination']);
+        }
         return $ticket;
     }
     public function listing(

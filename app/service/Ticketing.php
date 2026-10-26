@@ -25,6 +25,11 @@ final class Ticketing
     }
     public function search(string $origin, string $destination, string $date, array $filters = []): array
     {
+        $origin = StationDictionary::resolve($origin);
+        $destination = StationDictionary::resolve($destination);
+        if ($origin === $destination) {
+            $this->fail('Distinct stations required');
+        }
         $sql =
             'SELECT t.*, a.seq origin_seq, b.seq destination_seq, a.departure_at, b.arrival_at, (b.distance_m-a.distance_m) distance_m, a.speed_distances_m origin_speed_distances_m, b.speed_distances_m destination_speed_distances_m FROM trips t JOIN stops a ON a.trip_id=t.id JOIN stops b ON b.trip_id=t.id JOIN operators o ON o.code=t.operator_code WHERE t.active=1 AND o.active=1 AND a.station_id=? AND b.station_id=? AND a.seq<b.seq AND a.departure_at>=? AND a.departure_at<?';
         $bindings = [
@@ -66,7 +71,6 @@ final class Ticketing
                 $r['amount_minor'] = null;
                 $r['fare_available'] = false;
                 $r['fare_error'] = $e->getMessage();
-                $r['available'] = 0;
             }
             unset($r['origin_speed_distances_m'], $r['destination_speed_distances_m']);
             $r['currency'] = config('ticketing.currency');
@@ -92,6 +96,10 @@ final class Ticketing
                 ->where('seq', $c['destination_seq'])
                 ->find();
         }
+        foreach ($t['coupons'] as &$coupon) {
+            $coupon['origin'] = StationDictionary::decorate($coupon['origin']);
+            $coupon['destination'] = StationDictionary::decorate($coupon['destination']);
+        }
         return $t;
     }
     public function issue(array $body, string $key, string $agency): array
@@ -99,6 +107,10 @@ final class Ticketing
         if (!preg_match('/^[A-Za-z0-9_.:-]{1,100}$/', $key)) {
             $this->fail('Idempotency-Key is required');
         }
+        if (!isset($body['trip_id']) || !is_int($body['trip_id']) || $body['trip_id'] < 1) {
+            $this->fail('Invalid trip_id');
+        }
+        $body = StationDictionary::interval($body);
         foreach (['trip_id', 'origin_seq', 'destination_seq'] as $k) {
             if (!isset($body[$k]) || !is_int($body[$k]) || $body[$k] < 0) {
                 $this->fail('Expected nonnegative JSON integer: ' . $k);
@@ -174,6 +186,8 @@ final class Ticketing
                 if (!$origin || !$destination || $from >= $to) {
                     $this->fail('Invalid station interval');
                 }
+                StationDictionary::resolve($origin['station_id']);
+                StationDictionary::resolve($destination['station_id']);
                 if (
                     $origin['departure_at'] <=
                     (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d H:i:s.v')

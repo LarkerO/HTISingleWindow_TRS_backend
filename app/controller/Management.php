@@ -5,6 +5,21 @@ use think\exception\HttpException;
 use app\service\Organizations;
 final class Management
 {
+    public function stations(Request $r)
+    {
+        return json(
+            \app\service\StationDictionary::listing(
+                true,
+                (string) $r->get('q', ''),
+                (string) $r->get('dimension', ''),
+                (int) $r->get('page', 1),
+            ),
+        );
+    }
+    public function saveStation(Request $r)
+    {
+        return json(['data' => \app\service\StationDictionary::save($this->body($r))]);
+    }
     public function fareRates()
     {
         return json(['data' => \app\service\FarePricing::policy()]);

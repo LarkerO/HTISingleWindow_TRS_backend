@@ -74,3 +74,7 @@ API key 继续可用，调用方须使用当前 HMAC-SM3 协议；旧的仅传 `
 业务日期和时刻使用 UTC。北京时间为 UTC+8，换算时需同时调整日期。班次列表按运营日过滤，乘车区间按上车站 UTC 发车日期过滤，详见 [接口约定](external-api.md)。
 
 导入诊断位于 `runtime/import-report.json`，目录诊断位于 `runtime/catalog-report.json`，请求指标日志位于 `runtime/requests/`。这些本地运行文件不随仓库发布。
+
+## 车站字典升级
+
+更新后执行 `php think ticketing:schema`，然后在「机构管理 → 车站字典」配置站点。未配置站默认隐藏，不会自动公开全部 MTR 车站。已有客票仍可查询和退票。tTRS 应同步更新，以支持电报码检索、完整分页与字典票面。参见 [车站字典](station-dictionary.md)。

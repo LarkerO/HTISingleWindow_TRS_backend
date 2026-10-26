@@ -38,6 +38,11 @@ if (($argv[1] ?? '') === 'cleanup') {
         Db::table('agency_operators')->where('agency_code', $agency)->delete();
         Db::table('agency_operators')->where('operator_code', $op)->delete();
         Db::table('agencies')->where('code', $agency)->delete();
+        $stationIds = Db::table('stations')->where('dimension', $dimension)->column('id');
+        if ($stationIds) {
+            Db::table('station_dictionary')->whereIn('station_id', $stationIds)->delete();
+        }
+        Db::table('stations')->where('dimension', $dimension)->delete();
         Db::table('operators')->where('code', $op)->delete();
     });
     echo '{}';
@@ -91,7 +96,32 @@ $result = Db::transaction(function () use ($op, $agency, $dimension, $docNumber)
     if (count($chosen) !== 2) {
         throw new RuntimeException('Missing fixture interval');
     }
+    $codes = [];
+    for ($i = 0; $i < 17576 && count($codes) < 2; $i++) {
+        $code = chr(65 + intdiv($i, 676)) . chr(65 + intdiv($i % 676, 26)) . chr(65 + ($i % 26));
+        if (!Db::table('station_dictionary')->where('telegraph_code', $code)->find()) {
+            $codes[] = $code;
+        }
+    }
+    if (count($codes) !== 2) {
+        throw new RuntimeException('No free fixture station codes');
+    }
     foreach ($chosen as $seq => &$stop) {
+        $station = Db::table('stations')->where('id', $stop['station_id'])->find();
+        $station['id'] = $dimension . ':' . $seq;
+        $station['dimension'] = $dimension;
+        Db::table('stations')->insert($station);
+        $stop['station_id'] = $station['id'];
+        app\service\StationDictionary::save([
+            'station_id' => $station['id'],
+            'visible' => true,
+            'operator_code' => $op,
+            'telegraph_code' => $codes[$seq],
+            'name_zh' => '测试站' . $seq,
+            'name_en' => 'Fixture station ' . $seq,
+            'admin_level_1' => '测试省',
+            'admin_level_2' => '测试市',
+        ]);
         $stop['trip_id'] = $id;
         $stop['seq'] = $seq;
         $stop['arrival_at'] = '2099-08-01 10:0' . $seq . ':00';
@@ -106,6 +136,8 @@ $result = Db::transaction(function () use ($op, $agency, $dimension, $docNumber)
         'document' => $doc,
         'trip_id' => $id,
         'date' => '2099-08-01',
+        'origin_code' => $codes[0],
+        'destination_code' => $codes[1],
         'origin' => $chosen[0]['station_id'],
         'destination' => $chosen[1]['station_id'],
     ];

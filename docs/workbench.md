@@ -58,3 +58,7 @@ php think ticketing:clear-date --date=2026-10-26 --scope=timetable
 ```
 
 参数和管理员接口见 [接口文档](external-api.md)。
+
+## 车站字典
+
+在「机构管理 → 车站字典」搜索导入车站，点击编辑后填写唯一三字母电报码、单一归属运营企业、中英文名及两级行政区，再设置可见性并保存。行政区为自由输入。未配置站默认隐藏；重新导入保留字典配置。参见 [配置与 API](station-dictionary.md)。

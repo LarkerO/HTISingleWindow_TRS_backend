@@ -33,6 +33,8 @@ Route::get('/', function () {
     return redirect('/test.html');
 });
 Route::group('api/v1/admin', function () {
+    Route::get('stations', 'Management/stations');
+    Route::put('stations', 'Management/saveStation');
     Route::get('fare-rates', 'Management/fareRates');
     Route::put('fare-rates', 'Management/updateFareRates');
     Route::post('clear-date', 'Management/clearDate');

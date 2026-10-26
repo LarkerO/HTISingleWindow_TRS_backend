@@ -1280,5 +1280,107 @@
     "variant": "base",
     "type": "button",
     "disabled": false
+  },
+  "dictSearch": {
+    "kind": "text",
+    "label": "搜索车站 / 电报码",
+    "value": "",
+    "options": [],
+    "readonly": false
+  },
+  "dictId": {
+    "kind": "text",
+    "label": "MTR 车站 ID",
+    "value": "",
+    "options": [],
+    "readonly": true
+  },
+  "dictCode": {
+    "kind": "text",
+    "label": "三字符电报码",
+    "value": "",
+    "options": [],
+    "readonly": false
+  },
+  "dictZh": {
+    "kind": "text",
+    "label": "车站中文名",
+    "value": "",
+    "options": [],
+    "readonly": false
+  },
+  "dictEn": {
+    "kind": "text",
+    "label": "车站英文名",
+    "value": "",
+    "options": [],
+    "readonly": false
+  },
+  "dictLevel1": {
+    "kind": "text",
+    "label": "一级行政区",
+    "value": "",
+    "options": [],
+    "readonly": false
+  },
+  "dictLevel2": {
+    "kind": "text",
+    "label": "二级行政区",
+    "value": "",
+    "options": [],
+    "readonly": false
+  },
+  "dictOperator": {
+    "kind": "select",
+    "label": "归属运营企业",
+    "value": "",
+    "options": []
+  },
+  "dictVisible": {
+    "kind": "radio",
+    "label": "列表可见性",
+    "value": "0",
+    "options": [
+      {
+        "value": "0",
+        "label": "不可见"
+      },
+      {
+        "value": "1",
+        "label": "可见"
+      }
+    ]
+  },
+  "dictLoad": {
+    "kind": "button",
+    "label": "查询车站",
+    "type": "button",
+    "theme": "primary",
+    "variant": "base",
+    "disabled": false
+  },
+  "dictPrev": {
+    "kind": "button",
+    "label": "上一页",
+    "type": "button",
+    "theme": "primary",
+    "variant": "base",
+    "disabled": false
+  },
+  "dictNext": {
+    "kind": "button",
+    "label": "下一页",
+    "type": "button",
+    "theme": "primary",
+    "variant": "base",
+    "disabled": false
+  },
+  "dictSave": {
+    "kind": "button",
+    "label": "保存车站字典",
+    "type": "button",
+    "theme": "primary",
+    "variant": "base",
+    "disabled": false
   }
 }

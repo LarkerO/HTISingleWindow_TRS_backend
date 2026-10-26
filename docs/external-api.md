@@ -207,7 +207,7 @@ Accept: application/json
 
 | 查询参数    | 必填 | 说明                                     |
 | ----------- | ---- | ---------------------------------------- |
-| `q`         | 否   | 站名包含查询                             |
+| `q`         | 否   | 中英文名、源名称或电报码包含查询         |
 | `dimension` | 否   | 维度精确过滤，例如 `minecraft/overworld` |
 
 最多返回 500 条，没有分页。返回结构：
@@ -293,13 +293,13 @@ Accept: application/json
 
 `GET /api/v1/journeys`
 
-| 查询参数               | 必填 | 说明                          |
-| ---------------------- | ---- | ----------------------------- |
-| `origin`               | 是   | 上车站 ID                     |
-| `destination`          | 是   | 下车站 ID，必须与 origin 不同 |
-| `date`                 | 是   | 上车站发车的 UTC 日期         |
-| `train_number`         | 否   | 车次号                        |
-| `time_from`、`time_to` | 否   | 上车站发车时间窗口            |
+| 查询参数               | 必填 | 说明                                   |
+| ---------------------- | ---- | -------------------------------------- |
+| `origin`               | 是   | 上车站 ID 或电报码                     |
+| `destination`          | 是   | 下车站 ID 或电报码，必须与 origin 不同 |
+| `date`                 | 是   | 上车站发车的 UTC 日期                  |
+| `train_number`         | 否   | 车次号                                 |
+| `time_from`、`time_to` | 否   | 上车站发车时间窗口                     |
 
 返回最多 200 条，按上车发车时刻、班次 ID、停站序号排序，没有分页。结果过多时缩小区间、时段或车次号条件。
 
@@ -922,3 +922,11 @@ counts 为所选 scope 实际涉及的表数量，不涉及的表为 0。timetab
 新票的 `fare_snapshot` 保存原始计费金额、单价版本及各档里程，旧票快照为 null。费率更新不会重算已出票金额。
 
 每个 API 响应（含错误）在 `meta.request` 中返回 `request_id`、`duration_ms`、`memory_delta_bytes`、`memory_peak_bytes` 和 `memory_scope`，并提供 `X-Request-Id`、`X-Process-Time-Ms`、`X-Memory-Delta-Bytes`、`X-Memory-Peak-Bytes`、`Server-Timing`。计量边界及双向验签规则见 [认证与指标协议](sm3-auth.md)。
+
+## 车站字典与电报码扩展
+
+`GET /api/v1/stations` 仅返回可见站，支持 `q`（中文名、英文名、源名称、电报码）、`dimension` 和 `page`，每页 500 条并返回 `total`。请读取全部分页。新增字段包括 `telegraph_code`、`name_zh`、`name_en`、`operator_code`、`admin_level_1`、`admin_level_2`、`visible`、`source_name`。
+
+区间查询的 `origin`、`destination` 可使用站 ID 或不区分大小写的电报码。出票也支持字符串 `origin`、`destination` 替代对应站序；重复经过站点时需提供匹配的 `origin_seq`、`destination_seq`。同时提供电报码和站序必须一致。隐藏站禁止新查询和新出票，原票幂等重试、查票和退票保留。查票上下车站返回嵌套 `station` 字典信息。
+
+管理员 `GET /api/v1/admin/stations` 查看全部站点，`PUT /api/v1/admin/stations` 保存完整配置。字段、请求示例和升级说明见 [车站字典](station-dictionary.md)。

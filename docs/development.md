@@ -110,3 +110,7 @@ node tests/frontend-passengers.cjs
 可用 `WORKBENCH_URL` 指定页面地址、`BROWSER_CHANNEL` 指定浏览器通道。Windows 映射盘访问 WSL 仓库时，数据夹具测试可用 `WSL_BACKEND_PATH` 指定 WSL 内后端路径；支持该选项的测试可用 `PLAYWRIGHT_MODULE_PATH` 指定 Playwright 包目录。
 
 截图与运行日志保存在 `runtime/`，不提交到仓库。
+
+## 车站字典回归
+
+运行 `php tests/station-dictionary.php` 验证电报码唯一性、中英文查询、隐藏站限制、重复经过站点的站序匹配、幂等出票及历史票查退。夹具在事务结束后回滚。`php tests/fares.php` 使用独立可见站点验证计价，`php tests/sm3.php` 验证签名 HTTP 接口。tTRS 的 `tools/live_backend.py` 提供真实终端与 PHP API 的端到端验证，使用并清理专属车站、字典及其他夹具。
