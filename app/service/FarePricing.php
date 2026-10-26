@@ -101,8 +101,12 @@ final class FarePricing
             return self::policy();
         });
     }
-    public static function quote(array $origin, array $destination, ?array $policy = null): array
-    {
+    public static function quote(
+        array $origin,
+        array $destination,
+        ?array $policy = null,
+        int $multiplierBp = 10000,
+    ): array {
         $read = static function ($value) {
             if (is_array($value)) {
                 return $value;
@@ -144,7 +148,18 @@ final class FarePricing
         if ($numerator > PHP_INT_MAX - 500000) {
             throw new HttpException(409, 'Fare calculation overflow');
         }
-        $amount = intdiv($numerator + 500000, 1000000);
+        if ($multiplierBp < 10000 || $multiplierBp > 1000000) {
+            throw new HttpException(422, 'Invalid seat multiplier');
+        }
+        // Split into whole minor units and remainder to avoid a large intermediate product.
+        $whole = intdiv($numerator, 1000000);
+        if ($whole > intdiv(PHP_INT_MAX - 10000000000, $multiplierBp)) {
+            throw new HttpException(409, 'Fare calculation overflow');
+        }
+        $scaled = $whole * $multiplierBp;
+        $amount =
+            intdiv($scaled, 10000) +
+            intdiv(($scaled % 10000) * 1000000 + ($numerator % 1000000) * $multiplierBp + 5000000000, 10000000000);
         if ($amount > 2147483647) {
             throw new HttpException(409, 'Fare exceeds supported ticket amount');
         }

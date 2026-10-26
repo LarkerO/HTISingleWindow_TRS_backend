@@ -3,6 +3,7 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/vendor/autoload.php';
 $app = new think\App(dirname(__DIR__));
 $app->initialize();
+require __DIR__ . '/public-stop-fixture.php';
 use think\facade\Db;
 use app\service\Ticketing;
 function check(bool $ok, string $message): void
@@ -39,6 +40,7 @@ try {
     $trip = Db::table('trips')->where('active', 1)->find();
     check((bool) $trip, 'Real timetable persisted');
     $stops = Db::table('stops')->where('trip_id', $trip['id'])->order('seq')->select()->toArray();
+    $stops = publicStopFixture($stops, 'test/integration-' . bin2hex(random_bytes(6)), $trip['operator_code']);
     check(count($stops) >= 2, 'Passenger stops persisted');
     for ($i = 1; $i < count($stops); $i++) {
         check($stops[$i]['arrival_at'] >= $stops[$i - 1]['departure_at'], 'Stop times monotonic ' . $i);
@@ -47,6 +49,17 @@ try {
         ->where('id', $trip['id'])
         ->update(['capacity' => 1]);
     $trip['capacity'] = 1;
+    $trip['stock_code'] = 'integration-' . bin2hex(random_bytes(6));
+    Db::table('trips')
+        ->where('id', $trip['id'])
+        ->update(['stock_code' => $trip['stock_code']]);
+    Db::table('stock_seats')->insert([
+        'operator_code' => $trip['operator_code'],
+        'stock_code' => $trip['stock_code'],
+        'seat_code' => 'SECOND',
+        'enabled' => 1,
+        'capacity' => 1,
+    ]);
     // Isolate time-sensitive issuance from the historical sample operating day.
     foreach ($stops as $seq => &$stop) {
         $base = (new DateTimeImmutable('2099-01-01 10:00:00'))->modify('+' . $seq * 5 . ' minutes');
@@ -55,7 +68,11 @@ try {
         Db::table('stops')
             ->where('trip_id', $trip['id'])
             ->where('seq', $seq)
-            ->update(['arrival_at' => $stop['arrival_at'], 'departure_at' => $stop['departure_at']]);
+            ->update([
+                'arrival_at' => $stop['arrival_at'],
+                'departure_at' => $stop['departure_at'],
+                'station_id' => $stop['station_id'],
+            ]);
     }
     unset($stop);
     $service = new Ticketing();

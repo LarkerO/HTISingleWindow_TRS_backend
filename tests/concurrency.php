@@ -2,6 +2,7 @@
 require dirname(__DIR__) . '/vendor/autoload.php';
 $app = new think\App(dirname(__DIR__));
 $app->initialize();
+require __DIR__ . '/public-stop-fixture.php';
 use think\facade\Db;
 if (($argv[1] ?? '') === 'worker') {
     $trip = (int) $argv[2];
@@ -31,10 +32,19 @@ unset($source['id']);
 $source['dimension'] = 'test/' . bin2hex(random_bytes(8));
 $source['service_date'] = '2099-01-01';
 $source['capacity'] = 1;
+$source['stock_code'] = 'concurrency-' . bin2hex(random_bytes(6));
 $trip = (int) Db::table('trips')->insertGetId($source);
 $children = [];
 $latch = dirname(__DIR__) . '/runtime/latch-' . $trip;
 try {
+    $stops = publicStopFixture($stops, $source['dimension'], $source['operator_code']);
+    Db::table('stock_seats')->insert([
+        'operator_code' => $source['operator_code'],
+        'stock_code' => $source['stock_code'],
+        'seat_code' => 'SECOND',
+        'enabled' => 1,
+        'capacity' => 1,
+    ]);
     Db::table('agencies')->insert(['code' => 'TEST', 'name' => 'Test agency', 'issuer_code' => '998']);
     Db::table('agency_operators')->insert(['agency_code' => 'TEST', 'operator_code' => $source['operator_code']]);
     foreach ($stops as $seq => $s) {
@@ -90,7 +100,8 @@ try {
     if (is_file($latch)) {
         unlink($latch);
     }
-    Db::transaction(function () use ($trip) {
+    Db::transaction(function () use ($trip, $source) {
+        Db::table('stock_seats')->where('stock_code', $source['stock_code'])->delete();
         $ids = Db::table('coupons')->where('trip_id', $trip)->column('ticket_id');
         if ($ids) {
             Db::table('requests')->whereIn('ticket_id', $ids)->delete();
@@ -102,5 +113,9 @@ try {
         Db::table('agencies')->where('code', 'TEST')->delete();
         Db::table('stops')->where('trip_id', $trip)->delete();
         Db::table('trips')->where('id', $trip)->delete();
+        Db::table('station_dictionary')
+            ->whereIn('station_id', Db::table('stations')->where('dimension', $source['dimension'])->column('id'))
+            ->delete();
+        Db::table('stations')->where('dimension', $source['dimension'])->delete();
     });
 }

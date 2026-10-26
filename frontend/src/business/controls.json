@@ -1382,5 +1382,72 @@
     "theme": "primary",
     "variant": "base",
     "disabled": false
+  },
+  "reserveSeats": {
+    "kind": "button",
+    "text": "占额 10 分钟",
+    "label": "占额 10 分钟",
+    "type": "button",
+    "theme": "default",
+    "variant": "outline"
+  },
+  "cancelHold": {
+    "kind": "button",
+    "text": "取消占额",
+    "label": "取消占额",
+    "type": "button",
+    "theme": "default",
+    "variant": "outline"
+  },
+  "holdInfo": {
+    "kind": "notice",
+    "text": "尚未占额，可直接出票。",
+    "visible": true
+  },
+  "newOperator": {
+    "kind": "button",
+    "label": "新增运营方",
+    "type": "button",
+    "theme": "primary",
+    "variant": "outline"
+  },
+  "newAgency": {
+    "kind": "button",
+    "label": "新增出票方",
+    "type": "button",
+    "theme": "primary",
+    "variant": "outline"
+  },
+  "dictCancel": {
+    "kind": "button",
+    "label": "收起编辑",
+    "type": "button",
+    "theme": "primary",
+    "variant": "outline"
+  },
+  "reloadDepotOwners": {
+    "kind": "button",
+    "label": "刷新列表",
+    "type": "button",
+    "theme": "primary",
+    "variant": "outline"
+  },
+  "operatorSearch": {
+    "kind": "text",
+    "label": "搜索运营方",
+    "value": "",
+    "placeholder": "输入代码或名称筛选"
+  },
+  "agencySearch": {
+    "kind": "text",
+    "label": "搜索出票方",
+    "value": "",
+    "placeholder": "输入代码或名称筛选"
+  },
+  "depotOwnerSearch": {
+    "kind": "text",
+    "label": "搜索车厂或运营方",
+    "value": "",
+    "placeholder": "输入代码或名称筛选"
   }
 }

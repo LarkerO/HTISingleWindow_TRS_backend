@@ -2,6 +2,8 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useSessionStore } from '@/store/session';
 import Workbench from '@/pages/Workbench.vue';
+import { managementGroups, adminPages } from '@/navigation';
+const expanded = ref(['organizations', 'configuration']);
 const session = useSessionStore();
 const collapsed = ref(window.innerWidth < 800),
   dark = ref(false);
@@ -15,7 +17,7 @@ const titles: Record<string, string> = {
   tickets: '查票与退票',
   documents: '旅客证件库',
   operatorTickets: '运营方客票 / TLV',
-  management: '机构管理',
+  ...Object.fromEntries(adminPages.map((page) => [page.id, page.title])),
 };
 function navigate(page: string) {
   document.querySelector<HTMLElement>(`[data-tab="${page}"]`)?.click();
@@ -23,13 +25,25 @@ function navigate(page: string) {
 function activate(event: KeyboardEvent) {
   (event.currentTarget as HTMLElement).click();
 }
+const activeGroup = computed(() =>
+  managementGroups.find((group) => group.pages.some((page) => page.id === session.page)),
+);
+const description = computed(
+  () => adminPages.find((page) => page.id === session.page)?.description || '运行图查询与电子客票管理',
+);
+watch(
+  () => session.page,
+  () => {
+    if (activeGroup.value && !expanded.value.includes(activeGroup.value.id)) expanded.value.push(activeGroup.value.id);
+  },
+);
 const title = computed(() => titles[session.page] || titles.sales);
 watch(dark, (value) => document.documentElement.setAttribute('theme-mode', value ? 'dark' : 'light'));
 </script>
 <template>
   <t-layout class="starter-layout">
     <t-aside :width="collapsed ? '64px' : '232px'" class="starter-aside">
-      <t-menu :collapsed="collapsed" :value="session.page" class="starter-menu">
+      <t-menu v-model:expanded="expanded" :collapsed="collapsed" :value="session.page" class="starter-menu">
         <template #logo
           ><div class="brand">
             <span class="brand-mark">M</span><span v-if="!collapsed">MTR 客票工作台</span>
@@ -91,20 +105,29 @@ watch(dark, (value) => document.documentElement.setAttribute('theme-mode', value
             ><template #icon><t-icon name="file" /></template>运营方客票 / TLV</t-menu-item
           >
         </div>
-        <div
-          id="manageTab"
-          data-tab="management"
+        <t-submenu
+          v-for="group in managementGroups"
+          :key="group.id"
+          :id="group.id === 'organizations' ? 'manageTab' : group.id + 'Menu'"
+          :value="group.id"
+          :title="group.title"
           :hidden="session.role !== 'admin'"
-          role="menuitem"
-          tabindex="0"
-          aria-label="机构管理"
-          @keydown.enter="activate"
-          @keydown.space.prevent="activate"
         >
-          <t-menu-item value="management" @click="navigate('management')"
-            ><template #icon><t-icon name="setting" /></template>机构管理</t-menu-item
+          <template #icon><t-icon :name="group.icon" /></template>
+          <div
+            v-for="page in group.pages"
+            :key="page.id"
+            :id="page.id === 'rollingStock' ? 'stockTab' : page.id + 'Tab'"
+            :data-tab="page.id"
+            role="menuitem"
+            tabindex="0"
+            :aria-label="page.title"
+            @keydown.enter="activate"
+            @keydown.space.prevent="activate"
           >
-        </div>
+            <t-menu-item :value="page.id" @click="navigate(page.id)">{{ page.title }}</t-menu-item>
+          </div>
+        </t-submenu>
       </t-menu>
     </t-aside>
     <t-layout class="starter-main">
@@ -126,12 +149,13 @@ watch(dark, (value) => document.documentElement.setAttribute('theme-mode', value
       <t-content class="starter-content">
         <t-breadcrumb
           ><t-breadcrumb-item>MTR 电子客票</t-breadcrumb-item
+          ><t-breadcrumb-item v-if="activeGroup">{{ activeGroup.title }}</t-breadcrumb-item
           ><t-breadcrumb-item>{{ title }}</t-breadcrumb-item></t-breadcrumb
         >
         <div class="page-heading">
           <div>
             <h1>{{ title }}</h1>
-            <p>运行图查询与电子客票管理</p>
+            <p>{{ description }}</p>
           </div>
           <t-tag variant="outline">UTC 时刻</t-tag>
         </div>

@@ -41,6 +41,7 @@ final class Importer
                         $fare,
                         $merge,
                     ) {
+                        RollingStock::version(true);
                         // Lock the same physical trips as issue/refund before checking issued tickets.
                         $existing = Db::table('trips')
                             ->where('dimension', $dimension)
@@ -64,6 +65,19 @@ final class Importer
                         }
                         if (!Db::table('operators')->where('code', $operator)->where('active', 1)->find()) {
                             throw new \RuntimeException('Create an enabled operator before importing');
+                        }
+                        if (
+                            $existing &&
+                            Db::table('inventory_holds')
+                                ->whereIn('trip_id', array_column($existing, 'id'))
+                                ->where('status', 'HELD')
+                                ->whereRaw('expires_at>UTC_TIMESTAMP(3)')
+                                ->count()
+                        ) {
+                            throw new \RuntimeException('Cannot replace a service date with live reservations');
+                        }
+                        if ($existing) {
+                            Db::table('inventory_holds')->whereIn('trip_id', array_column($existing, 'id'))->delete();
                         }
                         Catalog::sync($data, $plan, $dimension);
                         $id = (int) Db::table('imports')->insertGetId([
@@ -112,6 +126,7 @@ final class Importer
                                 'siding_id' => $trip['siding_id'],
                                 'run_number' => $trip['run_number'],
                                 'route_ids' => json_encode($trip['route_ids']),
+                                'stock_code' => RollingStock::code($data['sidings'][(string) $trip['siding_id']] ?? []),
                                 'capacity' => $capacity,
                                 'fare_per_segment' => $fare,
                                 'active' => 1,

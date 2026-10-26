@@ -1,12 +1,22 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, shallowRef } from 'vue';
+import RollingStockPanel from '@/components/RollingStockPanel.vue';
+const stockRequest = shallowRef<any>();
 import BusinessField from '@/components/BusinessField.vue';
 import BusinessButton from '@/components/BusinessButton.vue';
-import BusinessForm from '@/components/BusinessForm.vue';
 import BusinessNotice from '@/components/BusinessNotice.vue';
-import BusinessGrants from '@/components/BusinessGrants.vue';
+import OperatorsPage from '@/pages/management/Operators.vue';
+import AgenciesPage from '@/pages/management/Agencies.vue';
+import AgencyGrantsPage from '@/pages/management/AgencyGrants.vue';
+import WhitelistPage from '@/pages/management/Whitelist.vue';
+import AssignmentsPage from '@/pages/management/Assignments.vue';
+import StationDictionaryPage from '@/pages/management/StationDictionary.vue';
+import FareRatesPage from '@/pages/management/FareRates.vue';
+import DataCleanupPage from '@/pages/management/DataCleanup.vue';
 import { initializeWorkbench } from '@/business/workbench';
-onMounted(() => initializeWorkbench());
+onMounted(() => {
+  stockRequest.value = initializeWorkbench().api;
+});
 </script>
 <template>
   <div class="workbench">
@@ -62,6 +72,8 @@ onMounted(() => initializeWorkbench());
       <t-card :bordered="false" class="business-card" id="issueSection"
         ><h2>出票</h2>
         <BusinessNotice id="selectedJourney" />
+        <div class="actions"><BusinessButton id="reserveSeats" /><BusinessButton id="cancelHold" /></div>
+        <BusinessNotice id="holdInfo" />
         <div class="row">
           <BusinessField id="issueDocumentId" /><BusinessField id="passenger" /><BusinessField id="requestKey" />
           <div class="actions"><BusinessButton id="newKey" /><BusinessButton id="issue" /></div>
@@ -170,126 +182,14 @@ onMounted(() => initializeWorkbench());
         <BusinessField id="tlvWire"
       /></t-card>
     </div>
-    <div id="management" class="panel" hidden>
-      <t-card :bordered="false" class="business-card">
-        <h2>车站字典</h2>
-        <p class="muted">
-          未配置车站默认不可见。电报码为全系统唯一的三个英文字母，归属企业绑定已有运营方代码。MTR 重新导入保留字典设置。
-        </p>
-        <div class="row">
-          <BusinessField id="dictSearch" /><BusinessButton id="dictLoad" /><BusinessButton
-            id="dictPrev"
-          /><BusinessButton id="dictNext" />
-        </div>
-        <p id="dictPageInfo" class="muted"></p>
-        <div id="dictionaryList" class="table-wrap"></div>
-        <div class="row">
-          <BusinessField id="dictId" /><BusinessField id="dictVisible" /><BusinessField
-            id="dictOperator"
-          /><BusinessField id="dictCode" />
-        </div>
-        <div class="row">
-          <BusinessField id="dictZh" /><BusinessField id="dictEn" /><BusinessField id="dictLevel1" /><BusinessField
-            id="dictLevel2"
-          /><BusinessButton id="dictSave" />
-        </div>
-      </t-card>
-      <t-card :bordered="false" class="business-card"
-        ><h2>轨道公里单价</h2>
-        <p class="muted">
-          按轨道标称限速分档计费，单价单位为分/公里。速度越高单价必须越高；各档里程合计后四舍五入到分。修改仅影响新报价及新出票，已出票金额保留快照。
-        </p>
-        <div class="row">
-          <BusinessField
-            v-for="speed in [2, 20, 30, 40, 60, 80, 120, 160, 200, 300, 900]"
-            :key="speed"
-            :id="'fareRate' + speed"
-          />
-        </div>
-        <div class="row"><BusinessButton id="saveFareRates" /><BusinessButton id="reloadFareRates" /></div>
-        <p id="farePolicyInfo" class="muted"></p
-      ></t-card>
-      <div class="grid">
-        <t-card :bordered="false" class="business-card"
-          ><h2>运营方管理</h2>
-          <BusinessForm id="operatorForm"
-            ><BusinessField id="opCode" /><BusinessField id="opName" /><BusinessField id="opContact" /><BusinessField
-              id="opWhitelist" /><BusinessField id="opActive" />
-            <div class="row" style="margin-top: 14px">
-              <BusinessButton id="operatorFormSubmit" /><BusinessButton id="resetOperator" /></div
-          ></BusinessForm>
-          <div id="operatorsList" class="table-wrap"></div
-        ></t-card>
-        <t-card :bordered="false" class="business-card"
-          ><h2>出票方管理</h2>
-          <BusinessForm id="agencyForm"
-            ><BusinessField id="agCode" /><BusinessField id="agName" /><BusinessField id="agIssuer" /><BusinessField
-              id="agContact" /><BusinessField id="agActive" />
-            <div class="row" style="margin-top: 14px">
-              <BusinessButton id="agencyFormSubmit" /><BusinessButton id="resetAgency" /></div
-          ></BusinessForm>
-          <div id="agenciesList" class="table-wrap"></div
-        ></t-card>
-      </div>
-      <t-card :bordered="false" class="business-card" style="margin-top: 18px"
-        ><h2>出票方白名单关联与密钥</h2>
-        <BusinessField id="grantAgency" /><BusinessGrants id="grantOperators" />
-        <div class="row"><BusinessButton id="saveGrants" /><BusinessButton id="rotateKey" /></div>
-        <p class="muted">
-          停用机构立即阻止其新请求；移出已启用白名单只阻止新出票，不影响原有客票的查票和退票。运营方关闭白名单时所有启用出票方均可出票。重置密钥后旧密钥立即失效。
-        </p>
-        <BusinessNotice id="keyResult"
-      /></t-card>
-      <t-card :bordered="false" class="business-card"
-        ><h2>车厂归属运营方</h2>
-        <div class="row">
-          <BusinessField id="assignDepot" /><BusinessField id="depotOperator" />
-          <div class="actions"><BusinessButton id="saveDepotOperator" /></div>
-        </div>
-        <p class="muted">
-          该车厂全部线路、全部运营日班次以及后续导入归属于所选运营方。已经出票的班次不能改为另一运营方。
-        </p>
-        <BusinessNotice id="depotOwnerStatus"
-      /></t-card>
-      <t-card :bordered="false" class="business-card"
-        ><h2>运营方出票白名单</h2>
-        <div class="row">
-          <BusinessField id="whitelistOperator" /><BusinessField id="whitelistMode" />
-          <div class="actions"><BusinessButton id="saveWhitelistMode" /><BusinessButton id="rotateOperatorKey" /></div>
-        </div>
-        <p class="muted">
-          开启后空列表表示不允许任何出票方出新票；关闭后保留列表以便再次开启。既有客票仍可查询和退票。
-        </p>
-        <div class="row">
-          <BusinessField id="whitelistAgency" />
-          <div class="actions"><BusinessButton id="addWhitelistAgency" /></div>
-        </div>
-        <div id="whitelistList" class="table-wrap"></div>
-        <BusinessNotice id="operatorKeyResult"
-      /></t-card>
-      <t-card :bordered="false" class="business-card"
-        ><h2>按运营日清空数据</h2>
-        <div class="row">
-          <BusinessField id="clearDate" /><BusinessField id="clearScope" />
-          <div class="actions"><BusinessButton id="clearPreview" /></div>
-        </div>
-        <p class="muted">
-          按班次运营日清理全部维度和历史导入版本，包含跨午夜停站。客票范围包含已退票记录、乘车联、幂等请求和审计记录；全部数据同时清除运行图。车站、地图目录、机构、密钥及全局证件库和证件日志保留；客票
-          TLV 同客票一起清理。仅清运行图时若有关联客票则拒绝。
-        </p>
-        <pre id="clearSummary"></pre>
-        <div class="row">
-          <BusinessField id="clearConfirm" />
-          <div class="actions"><BusinessButton id="clearExecute" /></div></div
-      ></t-card>
-      <t-card :bordered="false" class="business-card"
-        ><h2>设置班次运营方</h2>
-        <div class="row">
-          <BusinessField id="assignTripId" /><BusinessField id="assignOperator" />
-          <div class="actions"><BusinessButton id="assign" /></div>
-        </div>
-        <p class="muted">只允许修改尚未出票的班次，已有客票（含已退票）保留原运营方。</p></t-card
-      >
-    </div>
+    <div id="rollingStock" class="panel" hidden><RollingStockPanel :request="stockRequest" /></div>
+    <div id="operators" class="panel" hidden><OperatorsPage /></div>
+    <div id="agencies" class="panel" hidden><AgenciesPage /></div>
+    <div id="agencyGrants" class="panel" hidden><AgencyGrantsPage /></div>
+    <div id="whitelist" class="panel" hidden><WhitelistPage /></div>
+    <div id="assignments" class="panel" hidden><AssignmentsPage /></div>
+    <div id="stationDictionary" class="panel" hidden><StationDictionaryPage /></div>
+    <div id="fareRates" class="panel" hidden><FareRatesPage /></div>
+    <div id="dataCleanup" class="panel" hidden><DataCleanupPage /></div>
   </div>
 </template>

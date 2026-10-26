@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS mtr_depots (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE IF NOT EXISTS mtr_depot_sidings (
  dimension VARCHAR(120) NOT NULL, depot_id VARCHAR(20) NOT NULL, siding_id VARCHAR(20) NOT NULL,
- name VARCHAR(512) NOT NULL, train_type VARCHAR(128) NOT NULL, path_segments INT UNSIGNED NOT NULL,
+ name VARCHAR(512) NOT NULL, train_type VARCHAR(128) NOT NULL, stock_code VARCHAR(128) COLLATE utf8mb4_bin NOT NULL DEFAULT '', path_segments INT UNSIGNED NOT NULL,
  is_manual TINYINT NOT NULL, max_trains INT NOT NULL, unlimited_trains TINYINT NOT NULL,
  PRIMARY KEY(dimension,depot_id,siding_id),
  FOREIGN KEY(dimension,depot_id) REFERENCES mtr_depots(dimension,depot_id)

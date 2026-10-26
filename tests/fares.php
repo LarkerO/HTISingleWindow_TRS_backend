@@ -68,6 +68,14 @@ try {
     $source['dimension'] = 'test/fare-' . bin2hex(random_bytes(6));
     $source['service_date'] = '2099-06-01';
     $source['capacity'] = 10;
+    $source['stock_code'] = 'fare-fixture-' . bin2hex(random_bytes(6));
+    Db::table('stock_seats')->insert([
+        'operator_code' => $source['operator_code'],
+        'stock_code' => $source['stock_code'],
+        'seat_code' => 'SECOND',
+        'enabled' => 1,
+        'capacity' => 10,
+    ]);
     $trip = (int) Db::table('trips')->insertGetId($source);
     $template = Db::table('stops')->where('trip_id', '<>', $trip)->order('trip_id,seq')->limit(2)->select()->toArray();
     $codes = [];

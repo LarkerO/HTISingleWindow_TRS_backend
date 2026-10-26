@@ -18,6 +18,7 @@ const icons: Record<string, Component> = {
   ticket: TicketIcon,
   user: UserIcon,
   file: FileIcon,
+  vehicle: ViewListIcon,
   setting: SettingIcon,
   'view-list': ViewListIcon,
   sunny: SunnyIcon,

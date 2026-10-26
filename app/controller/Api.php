@@ -6,6 +6,24 @@ use think\Request;
 use think\exception\HttpException;
 final class Api
 {
+    public function reserve(Request $r)
+    {
+        $body = json_decode($r->getContent(), true);
+        if (!is_array($body) || array_is_list($body)) {
+            throw new HttpException(422, 'JSON object required');
+        }
+        return json([
+            'data' => \app\service\InventoryHolds::create(
+                $body,
+                (string) $r->header('Idempotency-Key', ''),
+                $r->identity['agency_code'],
+            ),
+        ]);
+    }
+    public function cancelReservation(Request $r, string $id)
+    {
+        return json(['data' => \app\service\InventoryHolds::cancel($id, $r->identity['agency_code'])]);
+    }
     public function me(Request $r)
     {
         $identity = $r->identity;

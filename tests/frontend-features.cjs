@@ -94,7 +94,7 @@ function fixture(mode) {
     )
       throw Error('Selected journey loses number or ID');
     console.log('PASS Browser date/number/interval/time filtering and distinct selected trip ID');
-    await page.locator('#manageTab').click();
+    await page.locator('#whitelistTab').click();
     await choose(page, 'whitelistOperator', f.operator);
     await page.waitForFunction(() => document.querySelector('#whitelistMode input:checked')?.value === '0');
     await choose(page, 'whitelistAgency', f.agency);
@@ -117,6 +117,7 @@ function fixture(mode) {
     if ((await page.locator('#whitelistList').textContent()).includes(f.agency))
       throw Error('Whitelist member not removed');
     console.log('PASS Browser operator whitelist mode and member add/remove');
+    await page.locator('#assignmentsTab').click();
     await choose(page, 'assignDepot', JSON.stringify([f.dimension, f.depot_id]));
     await choose(page, 'depotOperator', f.operator);
     await page.locator('#saveDepotOperator').click();

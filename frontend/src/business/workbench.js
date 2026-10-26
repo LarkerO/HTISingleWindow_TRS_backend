@@ -4,6 +4,7 @@ function mileage(value) {
 }
 import { useSessionStore } from '../store/session';
 import router from '../router';
+import { adminPageIds } from '../navigation';
 import {
   getControl,
   notify,
@@ -27,6 +28,7 @@ export function initializeWorkbench() {
     stations: new Map(),
     depots: [],
     journey: null,
+    hold: null,
     page: 1,
     total: 0,
     pageSize: 30,
@@ -146,6 +148,7 @@ export function initializeWorkbench() {
     if (!failure) tab(String(to.path.slice(1)), false);
   });
   async function connect() {
+    if (state.hold && state.key) await cancelHold();
     state.key = $('apiKey').value.trim();
     state.identity = null;
     session.role = '';
@@ -192,7 +195,7 @@ export function initializeWorkbench() {
     }
     if (!admin) {
       setChoices('agencyContext', [{ label: state.identity.agency_code, value: '' }]);
-      if (!$('management').hidden || !$('operatorTickets').hidden) tab('sales');
+      if (adminPageIds.includes(session.page) || !$('operatorTickets').hidden) tab('sales');
     }
     const stations = [];
     for (let page = 1; ; page++) {
@@ -334,6 +337,7 @@ export function initializeWorkbench() {
         (d) => `${d.name} · ${d.depot_id} · ${d.operator_code || '未划归'}`,
       );
       depotOwnerStatus();
+      renderDepotOwners();
     }
     choices(
       'tripDepot',
@@ -440,6 +444,7 @@ export function initializeWorkbench() {
     renderContent(box);
   }
   async function search() {
+    await cancelHold();
     state.journey = null;
     $('issue').disabled = true;
     $('selectedJourney').textContent = '请从新查询结果选择车次。';
@@ -454,25 +459,28 @@ export function initializeWorkbench() {
       ['time_to', 'journeyTimeTo'],
     ])
       if ($(id).value) q.set(key, $(id).value);
-    const rows = (await api('/journeys?' + q)).data;
+    const journeys = (await api('/journeys?' + q)).data;
+    const rows = journeys.flatMap((t) => (t.seat_options || []).map((s) => ({ ...t, ...s })));
     table(
       'journeyResults',
-      ['班次', '运营方', '发车 → 到达（UTC）', '里程', '余票', '票价', '操作'],
+      ['班次', '运营方', '发车 → 到达（UTC）', '里程', '席位（不对号入座）', '余票', '票价', '操作'],
       rows.map((t) => {
-        const b = action('选择出票', () => {
+        const b = action('选择出票', async () => {
+          await cancelHold();
           state.journey = t;
           newKey();
           $('selectedJourney').textContent =
-            `${t.train_number || '班次'} · ${tripLabel(t)} · 数据库 ID ${t.id} · ${station($('origin').value)} → ${station($('destination').value)} · ${t.departure_at} → ${t.arrival_at} UTC · ${mileage(t.distance_m)} · 站序 ${t.origin_seq}–${t.destination_seq} · ${money(t.amount_minor, t.currency)}`;
+            `${t.train_number || '班次'} · ${tripLabel(t)} · 数据库 ID ${t.id} · ${station($('origin').value)} → ${station($('destination').value)} · ${t.departure_at} → ${t.arrival_at} UTC · ${mileage(t.distance_m)} · 站序 ${t.origin_seq}–${t.destination_seq} · ${t.seat_name}（不对号入座）· ${money(t.amount_minor, t.currency)}`;
           $('issue').disabled = false;
           $('issueSection').scrollIntoView({ behavior: 'smooth' });
         });
-        b.disabled = t.available < 1;
+        b.disabled = t.available < 1 || t.fare_available === false;
         return [
           tripCell(t),
           t.operator_code + (t.operator_assignment === 'depot' ? ' · 车厂归属' : ''),
           `${t.departure_at} → ${t.arrival_at}`,
           mileage(t.distance_m),
+          t.seat_name,
           t.available,
           t.fare_available === false ? '里程待补齐' : money(t.amount_minor, t.currency),
           b,
@@ -511,7 +519,12 @@ export function initializeWorkbench() {
     }
     if (t.fare_snapshot) {
       const f = t.fare_snapshot;
-      box.append(el('p', `按轨道里程计费 · ${mileage(f.distance_m)} · 单价版本 ${f.fare_version}`));
+      box.append(
+        el(
+          'p',
+          `${f.seat_name || '二等座'}（不对号入座） · 倍率 ×${(f.multiplier_bp || 10000) / 10000} · 按轨道里程计费 · ${mileage(f.distance_m)} · 单价版本 ${f.fare_version}`,
+        ),
+      );
     }
     const d = el('details');
     d.append(el('summary', '原始响应'));
@@ -576,6 +589,7 @@ export function initializeWorkbench() {
           }))
             $('' + id).value = s[key] || '';
           $('dictVisible').value = s.visible ? '1' : '0';
+          openEditor('dictionaryEditor');
         }),
       ]),
     );
@@ -621,49 +635,67 @@ export function initializeWorkbench() {
         (s) => `${s.telegraph_code} · ${s.name} · ${s.name_en}`,
         '请选择车站',
       );
+    $('dictionaryEditor').hidden = true;
     message('车站字典已保存，请重新查询区间');
   });
+  function openEditor(id) {
+    $(id).hidden = false;
+    $(id).scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  function renderOrganizations() {
+    table(
+      'operatorsList',
+      ['代码 / 名称', '状态 / 白名单', '操作'],
+      state.operators
+        .filter((o) =>
+          `${o.code} ${o.name} ${o.contact || ''}`.toLowerCase().includes($('operatorSearch').value.toLowerCase()),
+        )
+        .map((o) => [
+          `${o.code} · ${o.name}`,
+          (o.active ? '启用' : '停用') + ' · 白名单' + (Number(o.whitelist_enabled) ? '开启' : '关闭'),
+          action('编辑', () => {
+            openEditor('operatorEditor');
+            state.opEdit = o.code;
+            $('opCode').value = o.code;
+            $('opCode').disabled = true;
+            $('opName').value = o.name;
+            $('opContact').value = o.contact;
+            $('opActive').value = o.active;
+            $('opWhitelist').value = o.whitelist_enabled;
+          }),
+        ]),
+    );
+    table(
+      'agenciesList',
+      ['代码 / 名称', '票号前缀 / 状态', '操作'],
+      state.agencies
+        .filter((a) =>
+          `${a.code} ${a.name} ${a.issuer_code}`.toLowerCase().includes($('agencySearch').value.toLowerCase()),
+        )
+        .map((a) => [
+          `${a.code} · ${a.name}`,
+          `${a.issuer_code} · ${a.active ? '启用' : '停用'}`,
+          action('编辑', () => {
+            openEditor('agencyEditor');
+            state.agEdit = a.code;
+            $('agCode').value = a.code;
+            $('agCode').disabled = true;
+            $('agName').value = a.name;
+            $('agIssuer').value = a.issuer_code;
+            $('agIssuer').disabled = true;
+            $('agContact').value = a.contact;
+            $('agActive').value = a.active;
+          }),
+        ]),
+    );
+  }
   async function management() {
     await loadFareRates();
     const [ops, ags] = await Promise.all([api('/admin/operators'), api('/admin/agencies')]);
     state.operators = ops.data;
     state.agencies = ags.data;
     await loadDictionary();
-    table(
-      'operatorsList',
-      ['代码 / 名称', '状态 / 白名单', '操作'],
-      ops.data.map((o) => [
-        `${o.code} · ${o.name}`,
-        (o.active ? '启用' : '停用') + ' · 白名单' + (Number(o.whitelist_enabled) ? '开启' : '关闭'),
-        action('编辑', () => {
-          state.opEdit = o.code;
-          $('opCode').value = o.code;
-          $('opCode').disabled = true;
-          $('opName').value = o.name;
-          $('opContact').value = o.contact;
-          $('opActive').value = o.active;
-          $('opWhitelist').value = o.whitelist_enabled;
-        }),
-      ]),
-    );
-    table(
-      'agenciesList',
-      ['代码 / 名称', '票号前缀 / 状态', '操作'],
-      ags.data.map((a) => [
-        `${a.code} · ${a.name}`,
-        `${a.issuer_code} · ${a.active ? '启用' : '停用'}`,
-        action('编辑', () => {
-          state.agEdit = a.code;
-          $('agCode').value = a.code;
-          $('agCode').disabled = true;
-          $('agName').value = a.name;
-          $('agIssuer').value = a.issuer_code;
-          $('agIssuer').disabled = true;
-          $('agContact').value = a.contact;
-          $('agActive').value = a.active;
-        }),
-      ]),
-    );
+    renderOrganizations();
     choices(
       'agencyContext',
       ags.data,
@@ -729,15 +761,18 @@ export function initializeWorkbench() {
     state.opEdit = null;
     $('operatorForm').reset();
     $('opCode').disabled = false;
+    $('operatorEditor').hidden = true;
   }
   function resetAg() {
     state.agEdit = null;
     $('agencyForm').reset();
     $('agCode').disabled = false;
     $('agIssuer').disabled = false;
+    $('agencyEditor').hidden = true;
   }
   on('connect', connect);
-  on('disconnect', () => {
+  on('disconnect', async () => {
+    await cancelHold();
     state.key = '';
     session.$reset();
     state.identity = null;
@@ -745,7 +780,10 @@ export function initializeWorkbench() {
     $('apiKey').value = '';
     $('identity').textContent = '密钥已清除';
     $('manageTab').hidden = true;
-    $('management').hidden = true;
+    for (const id of adminPageIds) $(id).hidden = true;
+    resetOp();
+    resetAg();
+    $('dictionaryEditor').hidden = true;
     $('keyResult').hidden = true;
     $('keyResult').textContent = '';
     $('issue').disabled = true;
@@ -755,6 +793,9 @@ export function initializeWorkbench() {
   });
   $('agencyContext').onchange = async () => {
     try {
+      // A hold belongs to the former agency; let it expire rather than using it across identities.
+      state.hold = null;
+      $('holdInfo').textContent = '出票方已切换，原占额将在截止时间自动释放。';
       const r = await api('/me');
       state.identity = r.data;
       $('identity').textContent =
@@ -815,6 +856,41 @@ export function initializeWorkbench() {
     state.page++;
     await browse();
   });
+  async function cancelHold() {
+    if (state.hold) await api('/inventory-holds/' + state.hold.id, 'DELETE');
+    state.hold = null;
+    $('holdInfo').textContent = '尚未占额，可直接出票。';
+  }
+  on('reserveSeats', async () => {
+    if (!state.journey) throw Error('先选择车次与席位');
+    if (state.hold) throw Error('已有占额，请先取消或出票');
+    const t = state.journey;
+    const result = await api(
+      '/inventory-holds',
+      'POST',
+      {
+        trip_id: Number(t.id),
+        origin_seq: Number(t.origin_seq),
+        destination_seq: Number(t.destination_seq),
+        seat_code: t.seat_code,
+        stock_version: t.stock_version,
+        fare_version: t.fare_version,
+      },
+      { 'Idempotency-Key': $('requestKey').value + '-hold' },
+    );
+    if (result.data.status !== 'HELD') {
+      newKey();
+      throw Error('原占额已过期或已使用，请重新占额');
+    }
+    state.hold = result.data;
+    $('holdInfo').textContent =
+      `${t.seat_name}已占额，截止 ${state.hold.expires_at} UTC；超时自动释放，请重新查询后占额。`;
+  });
+  on('cancelHold', async () => {
+    await cancelHold();
+    newKey();
+    message('占额已取消');
+  });
   on('newKey', newKey);
   on('issue', async () => {
     if (!state.journey) throw Error('先选择车次');
@@ -824,13 +900,17 @@ export function initializeWorkbench() {
       origin_seq: Number(t.origin_seq),
       destination_seq: Number(t.destination_seq),
       fare_version: t.fare_version,
+      seat_code: t.seat_code,
+      stock_version: t.stock_version,
     };
+    if (state.hold) body.hold_id = state.hold.id;
     const doc = $('issueDocumentId').value;
     if (doc) {
       if (!/^[1-9][0-9]*$/.test(doc)) throw Error('请输入有效证件库 ID');
       body.document_id = Number(doc);
     } else body.passenger = $('passenger').value;
     const result = await api('/tickets', 'POST', body, { 'Idempotency-Key': $('requestKey').value });
+    if (state.hold) $('holdInfo').textContent = '占额已用于出票。';
     renderTicket('issuedTicket', result.data);
     message('出票成功。重复提交此请求键会返回同一张票。');
   });
@@ -881,6 +961,19 @@ export function initializeWorkbench() {
     },
     'submit',
   );
+  on('newOperator', () => {
+    resetOp();
+    openEditor('operatorEditor');
+  });
+  on('newAgency', () => {
+    resetAg();
+    openEditor('agencyEditor');
+  });
+  on('operatorSearch', renderOrganizations, 'input');
+  on('agencySearch', renderOrganizations, 'input');
+  on('dictCancel', () => {
+    $('dictionaryEditor').hidden = true;
+  });
   on('resetOperator', resetOp);
   on('resetAgency', resetAg);
   $('grantAgency').onchange = grants;
@@ -970,6 +1063,32 @@ export function initializeWorkbench() {
     message('已清空 ' + r.data.date + '：' + JSON.stringify(r.data.counts));
   });
 
+  function renderDepotOwners() {
+    const q = $('depotOwnerSearch').value.toLowerCase();
+    table(
+      'depotOwnershipList',
+      ['车厂', '维度 / ID', '归属运营方', '操作'],
+      state.depots
+        .filter((d) =>
+          `${d.name} ${d.depot_id} ${d.dimension} ${d.operator_code || ''} ${d.operator_name || ''}`
+            .toLowerCase()
+            .includes(q),
+        )
+        .map((d) => [
+          d.name,
+          `${d.dimension} / ${d.depot_id}`,
+          d.operator_code ? `${d.operator_name} (${d.operator_code})` : '未划归',
+          action('设置归属', () => {
+            $('assignDepot').value = JSON.stringify([d.dimension, d.depot_id]);
+            if (d.operator_code) $('depotOperator').value = d.operator_code;
+            depotOwnerStatus();
+            $('assignDepot').scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }),
+        ]),
+    );
+  }
+  on('depotOwnerSearch', renderDepotOwners, 'input');
+  on('reloadDepotOwners', loadDepots);
   function depotOwnerStatus() {
     const selected = $('assignDepot').value;
     if (!selected) {
@@ -1373,4 +1492,5 @@ export function initializeWorkbench() {
   });
 
   tab(session.page);
+  return { api };
 }

@@ -14,6 +14,8 @@ Route::group('api/v1', function () {
     Route::get('stations', 'Api/stations');
     Route::get('journeys', 'Api/journeys');
     Route::get('trips/:id', 'Api/trip');
+    Route::post('inventory-holds', 'Api/reserve');
+    Route::delete('inventory-holds/:id', 'Api/cancelReservation');
     Route::post('tickets', 'Api/issue');
     Route::get('tickets/:number', 'Api/ticket');
     Route::post('tickets/:number/refund', 'Api/refund');
@@ -35,6 +37,8 @@ Route::get('/', function () {
 Route::group('api/v1/admin', function () {
     Route::get('stations', 'Management/stations');
     Route::put('stations', 'Management/saveStation');
+    Route::get('rolling-stock', 'Management/rollingStock');
+    Route::put('rolling-stock', 'Management/saveRollingStock');
     Route::get('fare-rates', 'Management/fareRates');
     Route::put('fare-rates', 'Management/updateFareRates');
     Route::post('clear-date', 'Management/clearDate');

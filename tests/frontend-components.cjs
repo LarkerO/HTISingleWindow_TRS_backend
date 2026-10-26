@@ -51,14 +51,10 @@ try {
     await page.locator('.t-time-picker__panel:visible').waitFor();
     await page.locator('.page-heading h1').click();
     if (!(await page.locator('#tripIdMode .t-radio-group').isVisible())) throw Error('TDesign radio group missing');
-    await page.locator('#manageTab').click();
-    await page.locator('#management').waitFor({ state: 'visible' });
-    if (
-      !(await page.locator('#operatorsList .t-table').isVisible()) ||
-      (!(await page.locator('#grantOperators .t-checkbox-group').count()) &&
-        !(await page.locator('#grantOperators .t-checkbox').count()))
-    )
-      throw Error('TDesign table or checkboxes missing');
+    await page.locator('#operatorsTab').click();
+    await page.locator('#operators').waitFor({ state: 'visible' });
+    if (!(await page.locator('#operatorsList .t-table').isVisible())) throw Error('TDesign operator table missing');
+    await page.locator('#agencyGrantsTab').click();
     const checkbox = page.locator('#grantOperators .t-checkbox').first(),
       native = checkbox.locator('input');
     const checked = await native.isChecked();
@@ -69,7 +65,8 @@ try {
     await page.locator('.t-dialog:visible').getByRole('button', { name: '取消', exact: true }).click();
     await page.locator('.t-dialog:visible').waitFor({ state: 'hidden' });
     await page.waitForFunction(() => !document.getElementById('rotateKey').disabled);
-    await page.locator('#resetOperator').click();
+    await page.locator('#operatorsTab').click();
+    await page.locator('#newOperator').click();
     await page.locator('#operatorFormSubmit').click();
     await page.locator('#operatorForm').getByText('请填写名称', { exact: true }).waitFor();
     await page.locator('#documentsTab').click();

@@ -112,7 +112,7 @@ function fixture(mode) {
       throw Error('Document-based issue snapshot mismatch');
     await page.locator('#issuedTicket').filter({ hasText: '证件快照' }).waitFor();
     console.log('PASS Browser document create/edit, before-after audit and snapshot-based issuance');
-    await page.locator('#manageTab').click();
+    await page.locator('#whitelistTab').click();
     await choose(page, 'whitelistOperator', f.operator);
     const rotation = waitResponse(page, (r) => r.url().endsWith('/admin/operators/' + f.operator + '/key'));
     await page.locator('#rotateOperatorKey').click();

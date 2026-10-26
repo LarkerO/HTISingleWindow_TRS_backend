@@ -62,9 +62,9 @@ try {
     await fillField(page, 'apiKey', key);
     await page.locator('#connect').click();
     await page.locator('#status').filter({ hasText: '连接成功' }).waitFor();
-    await page.locator('#manageTab').click();
-    await page.locator('#management').waitFor({ state: 'visible' });
-    assert.equal(await page.locator('#management [id^=fareRate]').count(), 11);
+    await page.locator('#fareRatesTab').click();
+    await page.locator('#fareRates').waitFor({ state: 'visible' });
+    assert.equal(await page.locator('#fareRates [id^=fareRate]').count(), 11);
     const policyText = await page.locator('#farePolicyInfo').textContent();
     assert(policyText.includes('单价版本'));
     const first = await page.locator('#fareRate2 input').inputValue();

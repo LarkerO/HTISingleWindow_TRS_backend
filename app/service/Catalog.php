@@ -53,6 +53,7 @@ final class Catalog
                         'siding_id' => (string) $s['id'],
                         'name' => $s['name'],
                         'train_type' => $s['train_type'] ?? '',
+                        'stock_code' => RollingStock::code($s),
                         'path_segments' => count($s['path'] ?? []),
                         'is_manual' => (int) ($s['is_manual'] ?? false),
                         'max_trains' => $s['max_trains'] ?? 0,

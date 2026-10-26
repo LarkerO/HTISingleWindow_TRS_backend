@@ -41,11 +41,11 @@ const {
     await fillField(page, 'apiKey', key);
     await page.locator('#connect').click();
     await page.locator('#status').filter({ hasText: '连接成功' }).waitFor();
-    await page.locator('#manageTab').click();
-    await page.waitForURL('**#/management');
-    await page.locator('#management').waitFor({ state: 'visible' });
+    await page.locator('#operatorsTab').click();
+    await page.waitForURL('**#/operators');
+    await page.locator('#operators').waitFor({ state: 'visible' });
     const clippedButtons = await page
-      .locator('#management .row > button')
+      .locator('#operators .row > button')
       .evaluateAll((es) => es.filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent));
     if (clippedButtons.length) throw Error('Clipped form buttons: ' + clippedButtons.join(','));
     if (await page.locator('#sales').isVisible()) throw Error('Inactive page visible');

@@ -20,6 +20,14 @@ final class Management
     {
         return json(['data' => \app\service\StationDictionary::save($this->body($r))]);
     }
+    public function rollingStock()
+    {
+        return json(['data' => \app\service\RollingStock::listing()]);
+    }
+    public function saveRollingStock(Request $r)
+    {
+        return json(['data' => \app\service\RollingStock::save($this->body($r))]);
+    }
     public function fareRates()
     {
         return json(['data' => \app\service\FarePricing::policy()]);

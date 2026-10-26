@@ -16,6 +16,7 @@ final class DepotOwnership
         }
         try {
             return Db::transaction(function () use ($dimension, $depotId, $operator) {
+                RollingStock::version(true);
                 // Lock trips before updating the catalog row, consistent with sale/import.
                 $trips = Db::table('trips')
                     ->where('dimension', $dimension)
@@ -36,6 +37,16 @@ final class DepotOwnership
                     throw new HttpException(422, 'Enabled operator required');
                 }
                 $changed = array_column(array_filter($trips, fn($t) => $t['operator_code'] !== $operator), 'id');
+                if (
+                    $changed &&
+                    Db::table('inventory_holds')
+                        ->whereIn('trip_id', $changed)
+                        ->where('status', 'HELD')
+                        ->whereRaw('expires_at>UTC_TIMESTAMP(3)')
+                        ->count()
+                ) {
+                    throw new HttpException(409, 'Depot has live reservations');
+                }
                 if ($changed && Db::table('coupons')->whereIn('trip_id', $changed)->count()) {
                     throw new HttpException(409, 'Depot has issued trips under another operator');
                 }

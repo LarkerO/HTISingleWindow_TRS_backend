@@ -38,6 +38,7 @@ final class Schema extends Command
         \app\service\FeatureSchema::migrate();
         \app\service\SecuritySchema::migrate();
         \app\service\FarePricing::migrate();
+        \app\service\RollingStock::migrate();
         \app\service\Organizations::seed();
         \app\service\TripIdentity::migrate();
         $output->writeln('Schema ready');

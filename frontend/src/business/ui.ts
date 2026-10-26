@@ -276,7 +276,17 @@ export function renderTable(target: any, head: string[], rows: any[][]) {
   }));
   if (!(element as any)._vnode) element.replaceChildren();
   render(
-    h(Table as Component, { rowKey: 'rowId', data, columns, hover: true, size: 'small', empty: '暂无数据' }),
+    h(Table as Component, {
+      rowKey: 'rowId',
+      data,
+      columns,
+      hover: true,
+      size: 'small',
+      empty: '暂无数据',
+      pagination: ['operatorsList', 'agenciesList', 'dictionaryList', 'depotOwnershipList'].includes(element.id)
+        ? { defaultCurrent: 1, defaultPageSize: 20, total: data.length }
+        : undefined,
+    }),
     element,
   );
 }

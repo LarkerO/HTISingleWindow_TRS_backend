@@ -77,4 +77,4 @@ API key 继续可用，调用方须使用当前 HMAC-SM3 协议；旧的仅传 `
 
 ## 车站字典升级
 
-更新后执行 `php think ticketing:schema`，然后在「机构管理 → 车站字典」配置站点。未配置站默认隐藏，不会自动公开全部 MTR 车站。已有客票仍可查询和退票。tTRS 应同步更新，以支持电报码检索、完整分页与字典票面。参见 [车站字典](station-dictionary.md)。
+更新后执行 `php think ticketing:schema`，然后在「业务配置 → 车站字典」配置站点。未配置站默认隐藏，不会自动公开全部 MTR 车站。已有客票仍可查询和退票。tTRS 应同步更新，以支持电报码检索、完整分页与字典票面。参见 [车站字典](station-dictionary.md)。

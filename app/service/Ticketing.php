@@ -9,17 +9,35 @@ final class Ticketing
     {
         throw new HttpException($code, $message);
     }
-    public function available(array $trip, int $from, int $to): int
-    {
-        $minimum = (int) $trip['capacity'];
+    public function available(
+        array $trip,
+        int $from,
+        int $to,
+        string $seatCode = 'SECOND',
+        ?string $excludeHold = null,
+    ): int {
+        $seat = RollingStock::seat($trip, $seatCode);
+        $capacity = $seat['capacity'];
+        $minimum = $capacity;
         for ($seq = $from; $seq < $to; $seq++) {
             $used = Db::table('coupons')
                 ->where('trip_id', $trip['id'])
+                ->where('seat_code', $seatCode)
                 ->where('status', 'OPEN')
                 ->where('origin_seq', '<=', $seq)
                 ->where('destination_seq', '>', $seq)
                 ->count();
-            $minimum = min($minimum, max(0, (int) $trip['capacity'] - $used));
+            $holds = Db::table('inventory_holds')
+                ->where('trip_id', $trip['id'])
+                ->where('seat_code', $seatCode)
+                ->where('status', 'HELD')
+                ->whereRaw('expires_at>UTC_TIMESTAMP(3)')
+                ->where('origin_seq', '<=', $seq)
+                ->where('destination_seq', '>', $seq);
+            if ($excludeHold !== null) {
+                $holds->where('id', '<>', $excludeHold);
+            }
+            $minimum = min($minimum, max(0, $capacity - $used - $holds->count()));
         }
         return $minimum;
     }
@@ -56,7 +74,7 @@ final class Ticketing
         $rows = Db::query($sql . ' ORDER BY a.departure_at,t.id,a.seq,b.seq LIMIT 200', $bindings);
         foreach ($rows as &$r) {
             $r = TripIdentity::present($r);
-            $r['available'] = $this->available($r, (int) $r['origin_seq'], (int) $r['destination_seq']);
+            $r['available'] = 0;
             try {
                 $r = array_merge(
                     $r,
@@ -72,7 +90,38 @@ final class Ticketing
                 $r['fare_available'] = false;
                 $r['fare_error'] = $e->getMessage();
             }
+            $r['stock_version'] = RollingStock::version();
+            $r['seat_options'] = [];
+            foreach (RollingStock::seats($r) as $seat) {
+                $option = $seat + [
+                    'available' => $this->available(
+                        $r,
+                        (int) $r['origin_seq'],
+                        (int) $r['destination_seq'],
+                        $seat['seat_code'],
+                    ),
+                ];
+                if ($r['fare_available']) {
+                    $option = array_merge(
+                        $option,
+                        FarePricing::quote(
+                            ['speed_distances_m' => $r['origin_speed_distances_m']],
+                            ['speed_distances_m' => $r['destination_speed_distances_m']],
+                            $policy,
+                            $seat['multiplier_bp'],
+                        ),
+                    );
+                } else {
+                    $option['amount_minor'] = null;
+                }
+                $r['seat_options'][] = $option;
+            }
             unset($r['origin_speed_distances_m'], $r['destination_speed_distances_m']);
+            foreach ($r['seat_options'] as $option) {
+                if ($option['seat_code'] === 'SECOND') {
+                    $r['available'] = $option['available'];
+                }
+            }
             $r['currency'] = config('ticketing.currency');
         }
         return $rows;
@@ -119,6 +168,22 @@ final class Ticketing
         if (isset($body['fare_version']) && (!is_int($body['fare_version']) || $body['fare_version'] < 1)) {
             $this->fail('fare_version must be a positive integer');
         }
+        $seatCode = $body['seat_code'] ?? 'SECOND';
+        if (!is_string($seatCode) || !preg_match('/^[A-Z][A-Z0-9_]{0,31}$/D', $seatCode)) {
+            $this->fail('Invalid seat_code');
+        }
+        if (isset($body['stock_version']) && (!is_int($body['stock_version']) || $body['stock_version'] < 1)) {
+            $this->fail('Invalid stock_version');
+        }
+        if (
+            isset($body['hold_id']) &&
+            (!is_string($body['hold_id']) || !preg_match('/^[a-f0-9]{32}$/D', $body['hold_id']))
+        ) {
+            $this->fail('Invalid hold_id');
+        }
+        if (isset($body['carriage_number']) || isset($body['seat_number'])) {
+            $this->fail('Assigned seating is not available');
+        }
         $documentId = $body['document_id'] ?? null;
         if (array_key_exists('document_id', $body) && (!is_int($documentId) || $documentId < 1)) {
             $this->fail('document_id must be a positive JSON integer');
@@ -139,6 +204,14 @@ final class Ticketing
             'destination_seq' => $body['destination_seq'],
             'passenger' => $passenger,
         ];
+        if ($seatCode !== 'SECOND' || isset($body['seat_code'])) {
+            $normalized['seat_code'] = $seatCode;
+        }
+        foreach (['stock_version', 'hold_id'] as $field) {
+            if (isset($body[$field])) {
+                $normalized[$field] = $body[$field];
+            }
+        }
         if ($documentId !== null) {
             $normalized['document_id'] = $documentId;
         }
@@ -149,6 +222,7 @@ final class Ticketing
 
         try {
             $number = Db::transaction(function () use ($normalized, $key, $agency, $hash) {
+                $stockVersion = RollingStock::version(true);
                 $trip = Db::table('trips')->where('id', $normalized['trip_id'])->lock(true)->find();
                 $existing = Db::table('requests')->where('agency_code', $agency)->where('request_key', $key)->find();
                 if ($existing) {
@@ -159,6 +233,15 @@ final class Ticketing
                 }
                 if (!$trip || !$trip['active']) {
                     $this->fail('Trip not available', 409);
+                }
+                if (isset($normalized['stock_version']) && $normalized['stock_version'] !== $stockVersion) {
+                    $this->fail('Seat policy changed; query again', 409);
+                }
+                $seatCode = $normalized['seat_code'] ?? 'SECOND';
+                $seat = RollingStock::seat($trip, $seatCode);
+                $hold = null;
+                if (isset($normalized['hold_id'])) {
+                    $hold = InventoryHolds::forIssue($normalized['hold_id'], $agency, $normalized, $stockVersion);
                 }
                 $organization = Db::table('agencies')->where('code', $agency)->lock(true)->find();
                 if (!$organization || !$organization['active']) {
@@ -194,7 +277,7 @@ final class Ticketing
                 ) {
                     $this->fail('Departure already passed', 409);
                 }
-                if ($this->available($trip, $from, $to) < 1) {
+                if ($this->available($trip, $from, $to, $seatCode, $hold['id'] ?? null) < 1) {
                     $this->fail('Sold out', 409);
                 }
                 $document = null;
@@ -216,7 +299,14 @@ final class Ticketing
                 for ($i = 0; $i < 6; $i++) {
                     $pnr .= $alphabet[random_int(0, strlen($alphabet) - 1)];
                 }
-                $quote = FarePricing::quote($origin, $destination, FarePricing::policy(true));
+                $quote = FarePricing::quote($origin, $destination, FarePricing::policy(true), $seat['multiplier_bp']);
+                if ($hold && (int) $hold['fare_version'] !== $quote['fare_version']) {
+                    $this->fail('Fare changed; reserve again', 409);
+                }
+                $quote = array_merge($quote, $seat, [
+                    'stock_version' => $stockVersion,
+                    'stock_code' => $trip['stock_code'] ?? '',
+                ]);
                 if (isset($normalized['fare_version']) && $normalized['fare_version'] !== $quote['fare_version']) {
                     $this->fail('Fare changed; query the interval again', 409);
                 }
@@ -241,8 +331,14 @@ final class Ticketing
                     'trip_id' => $trip['id'],
                     'origin_seq' => $from,
                     'destination_seq' => $to,
+                    'seat_code' => $seatCode,
                     'status' => 'OPEN',
                 ]);
+                if ($hold) {
+                    Db::table('inventory_holds')
+                        ->where('id', $hold['id'])
+                        ->update(['status' => 'CONSUMED', 'ticket_id' => $tid]);
+                }
                 Db::table('requests')->insert([
                     'agency_code' => $agency,
                     'request_key' => $key,

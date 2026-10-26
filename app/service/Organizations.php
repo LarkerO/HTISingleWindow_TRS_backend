@@ -184,6 +184,7 @@ final class Organizations
     public function assignTrip(int $id, string $operator): void
     {
         Db::transaction(function () use ($id, $operator) {
+            RollingStock::version(true);
             $trip = Db::table('trips')->where('id', $id)->lock(true)->find();
             if (!$trip) {
                 throw new HttpException(404, 'Trip not found');
@@ -197,6 +198,15 @@ final class Organizations
                 ->value('operator_code');
             if ($owner !== null && $owner !== $operator) {
                 throw new HttpException(409, 'Trip belongs to depot owner; reassign the depot instead');
+            }
+            if (
+                Db::table('inventory_holds')
+                    ->where('trip_id', $id)
+                    ->where('status', 'HELD')
+                    ->whereRaw('expires_at>UTC_TIMESTAMP(3)')
+                    ->count()
+            ) {
+                throw new HttpException(409, 'Trip has live reservations');
             }
             if (Db::table('coupons')->where('trip_id', $id)->count()) {
                 throw new HttpException(409, 'Issued trip operator cannot be changed');

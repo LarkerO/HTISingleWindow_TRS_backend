@@ -100,16 +100,19 @@ const { chromium } = playwright;
     if (!(await page.locator('#requestKey input, #requestKey textarea').first().inputValue()))
       throw Error('No idempotency key');
     await page.screenshot({ path: root + '/runtime/test-sales.png', fullPage: true });
-    await page.locator('#manageTab').click();
+    await page.locator('#operatorsTab').click();
     await page.locator('#operatorsList tbody tr').first().getByRole('button').click();
     if (!(await page.locator('#opCode input').first().isDisabled())) throw Error('Operator code should be immutable');
     await page.locator('#resetOperator').click();
     if (await page.locator('#opCode input').first().isDisabled()) throw Error('Operator form reset failed');
+    await page.locator('#agenciesTab').click();
     await page.locator('#agenciesList tbody tr').first().getByRole('button').click();
     if (!(await page.locator('#agIssuer input').first().isDisabled())) throw Error('Agency prefix should be immutable');
     await page.locator('#resetAgency').click();
     if (await page.locator('#agIssuer input').first().isDisabled()) throw Error('Agency form reset failed');
 
+    await page.getByText('数据维护', { exact: true }).click();
+    await page.locator('#dataCleanupTab').click();
     await page.locator('#clearPreview').click();
     await page.locator('#status').filter({ hasText: '已预览清空范围' }).waitFor();
     if (!(await page.locator('#clearSummary').textContent())) throw Error('Cleanup counts missing');

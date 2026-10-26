@@ -31,6 +31,9 @@ final class DateCleanup
                     Db::table('tickets')->whereIn('id', $ticketIds)->order('id')->lock(true)->select();
                 }
                 $counts = [
+                    'inventory_holds' => $tripIds
+                        ? Db::table('inventory_holds')->whereIn('trip_id', $tripIds)->count()
+                        : 0,
                     'trips' => count($tripIds),
                     'stops' => $tripIds ? Db::table('stops')->whereIn('trip_id', $tripIds)->count() : 0,
                     'imports' => Db::table('imports')->where('service_date', $date)->count(),
@@ -62,7 +65,8 @@ final class DateCleanup
                 foreach ($affected as $table => &$count) {
                     if (
                         ($scope === 'tickets' && in_array($table, ['trips', 'stops', 'imports'], true)) ||
-                        ($scope === 'timetable' && !in_array($table, ['trips', 'stops', 'imports'], true))
+                        ($scope === 'timetable' &&
+                            !in_array($table, ['trips', 'stops', 'imports', 'inventory_holds'], true))
                     ) {
                         $count = 0;
                     }
@@ -71,6 +75,9 @@ final class DateCleanup
                 if (!$preview) {
                     if ($blocked) {
                         throw new HttpException(409, 'Clear associated tickets first, or use scope all');
+                    }
+                    if ($tripIds) {
+                        Db::table('inventory_holds')->whereIn('trip_id', $tripIds)->delete();
                     }
                     if ($scope !== 'timetable' && $ticketIds) {
                         foreach (['requests', 'ticket_events', 'coupons'] as $table) {
