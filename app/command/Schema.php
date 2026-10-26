@@ -40,6 +40,7 @@ final class Schema extends Command
         \app\service\FarePricing::migrate();
         \app\service\RollingStock::migrate();
         \app\service\Organizations::seed();
+        \app\service\StationDictionary::migrate();
         \app\service\TripIdentity::migrate();
         $output->writeln('Schema ready');
         return 0;

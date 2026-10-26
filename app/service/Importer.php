@@ -107,6 +107,7 @@ final class Importer
                                     'dimension' => $dimension,
                                     'name' => $s['name'],
                                 ]);
+                            StationDictionary::syncName($dimension . ':' . $s['id']);
                         }
                         $midnight = new \DateTimeImmutable($date . ' 00:00:00', new \DateTimeZone('UTC'));
                         $owners = Db::table('mtr_depots')

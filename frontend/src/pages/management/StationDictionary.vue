@@ -7,7 +7,9 @@ import BusinessButton from '@/components/BusinessButton.vue';
     <t-card :bordered="false" class="business-card">
       <h2>车站字典</h2>
       <p class="muted">
-        未配置车站默认不可见。电报码为全系统唯一的三个英文字母，归属企业绑定已有运营方代码。MTR 重新导入保留字典设置。
+        导入时自动从 MTR
+        的“中文|英文”名称提取中英文；人工改名保留。未配置车站默认不可见。电报码为全系统唯一的三个英文字母，归属企业绑定已有运营方代码。MTR
+        重新导入保留字典设置。
       </p>
       <div class="row">
         <BusinessField id="dictSearch" /><BusinessButton id="dictLoad" /><BusinessButton id="dictPrev" /><BusinessButton

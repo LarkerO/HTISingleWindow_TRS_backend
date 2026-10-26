@@ -5,6 +5,81 @@ use think\facade\Db;
 use think\exception\HttpException;
 final class StationDictionary
 {
+    /** MTR separates language variants with |; select the first Han and Latin variants. */
+    public static function splitName(string $name): array
+    {
+        $out = ['name_zh' => '', 'name_en' => ''];
+        foreach (explode('|', $name) as $part) {
+            $part = trim(preg_replace('/§[0-9a-fk-orx]/iu', '', $part) ?? $part);
+            if ($part === '' || mb_strlen($part) > 160) {
+                continue;
+            }
+            if (preg_match('/\\p{Han}/u', $part)) {
+                if ($out['name_zh'] === '') {
+                    $out['name_zh'] = $part;
+                }
+            } elseif (
+                preg_match('/[A-Za-z]/', $part) &&
+                !preg_match('/[\\p{Hiragana}\\p{Katakana}\\p{Hangul}]/u', $part)
+            ) {
+                if ($out['name_en'] === '') {
+                    $out['name_en'] = $part;
+                }
+            }
+        }
+        return $out;
+    }
+    public static function migrate(): void
+    {
+        // Drafts have no code or operator until configured. Unique NULL codes do not collide.
+        Db::execute('ALTER TABLE station_dictionary MODIFY operator_code VARCHAR(16) NULL');
+        Db::execute(
+            'ALTER TABLE station_dictionary MODIFY telegraph_code CHAR(3) CHARACTER SET ascii COLLATE ascii_bin NULL',
+        );
+        Db::execute(
+            "ALTER TABLE station_dictionary ADD COLUMN IF NOT EXISTS name_zh_source VARCHAR(16) NOT NULL DEFAULT 'manual'",
+        );
+        Db::execute(
+            "ALTER TABLE station_dictionary ADD COLUMN IF NOT EXISTS name_en_source VARCHAR(16) NOT NULL DEFAULT 'manual'",
+        );
+        foreach (Db::table('stations')->column('id') as $id) {
+            self::syncName($id);
+        }
+    }
+    public static function syncName(string $id): void
+    {
+        Db::transaction(function () use ($id) {
+            $station = Db::table('stations')->where('id', $id)->lock(true)->find();
+            if (!$station) {
+                return;
+            }
+            $names = self::splitName($station['name']);
+            $existing = Db::table('station_dictionary')->where('station_id', $id)->lock(true)->find();
+            if (!$existing) {
+                Db::table('station_dictionary')->insert(
+                    [
+                        'station_id' => $id,
+                        'visible' => 0,
+                        'operator_code' => null,
+                        'telegraph_code' => null,
+                        'name_zh_source' => 'mtr',
+                        'name_en_source' => 'mtr',
+                    ] + $names,
+                );
+                return;
+            }
+            $updates = [];
+            foreach ($names as $field => $value) {
+                if (($existing[$field . '_source'] ?? 'manual') === 'mtr' || $existing[$field] === '') {
+                    $updates[$field] = $value;
+                    $updates[$field . '_source'] = 'mtr';
+                }
+            }
+            if ($updates) {
+                Db::table('station_dictionary')->where('station_id', $id)->update($updates);
+            }
+        });
+    }
     public static function listing(bool $admin, string $search = '', string $dimension = '', int $page = 1): array
     {
         $q = Db::table('stations')->alias('s')->leftJoin('station_dictionary d', 'd.station_id=s.id');
@@ -24,7 +99,7 @@ final class StationDictionary
         $total = (clone $q)->count();
         $rows = $q
             ->field(
-                's.*,d.visible,d.operator_code,d.telegraph_code,d.name_zh,d.name_en,d.admin_level_1,d.admin_level_2',
+                's.*,d.visible,d.operator_code,d.telegraph_code,d.name_zh,d.name_en,d.name_zh_source,d.name_en_source,d.admin_level_1,d.admin_level_2',
             )
             ->order('s.name,s.id')
             ->page(max(1, $page), 500)
@@ -77,7 +152,17 @@ final class StationDictionary
         try {
             Db::transaction(function () use ($data) {
                 Db::table('stations')->where('id', $data['station_id'])->lock(true)->find();
-                if (Db::table('station_dictionary')->where('station_id', $data['station_id'])->find()) {
+                $existing = Db::table('station_dictionary')
+                    ->where('station_id', $data['station_id'])
+                    ->lock(true)
+                    ->find();
+                foreach (['name_zh', 'name_en'] as $field) {
+                    $data[$field . '_source'] =
+                        $existing && $existing[$field] === $data[$field]
+                            ? $existing[$field . '_source'] ?? 'manual'
+                            : 'manual';
+                }
+                if ($existing) {
                     Db::table('station_dictionary')->where('station_id', $data['station_id'])->update($data);
                 } else {
                     Db::table('station_dictionary')->insert($data);
